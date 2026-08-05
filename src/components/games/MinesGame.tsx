@@ -1,22 +1,24 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { BetPanel } from "@/components/games/BetPanel";
+import { AnimatedNumber } from "@/components/games/AnimatedNumber";
+import { BetPanel, PlayButton } from "@/components/games/BetPanel";
+import { BoardHeader, GameBoard, type HistoryEntry } from "@/components/games/GameBoard";
 import { GameLayout } from "@/components/games/GameLayout";
-import { Button } from "@/components/ui/Button";
+import { pushHistory } from "@/components/games/GameHistory";
 import { cn } from "@/lib/cn";
-import { MINES_TILES, formatMultiplier, minesMultiplier } from "@/lib/games";
+import { MINES_TILES, MULTIPLIER_SCALE, formatMultiplier, minesMultiplier } from "@/lib/games";
+import { createMinesDemo } from "@/lib/games/demo";
 import { crypto as cryptoAmount } from "@/lib/money/amounts";
 import { formatCrypto } from "@/lib/money/format";
 import type { CryptoCode } from "@/lib/money/currencies";
+import { celebrate, feedback, play as playSound, unlockSound } from "@/lib/sound";
 import {
   cashOutMines,
   openMinesRound,
   revealMinesTile,
   type MinesRoundState,
 } from "@/server/games/mines";
-import { createMinesDemo } from "@/lib/games/demo";
-import { feedback, play as playSound, unlockSound } from "@/lib/sound";
 
 /**
  * Mines.
@@ -24,7 +26,12 @@ import { feedback, play as playSound, unlockSound } from "@/lib/sound";
  * Every tap goes to the server, which checks it against a board already fixed
  * by the seeds. That is what makes the tension honest: the answer exists before
  * you touch anything, and nobody — including KYRO — can change it once you have.
+ *
+ * The tile turns over rather than recolouring. A quarter-second flip is the
+ * difference between "the square changed colour" and "I opened something", and
+ * it is the entire feel of this game.
  */
+
 export function MinesGame({
   asset,
   balance: initialBalance,
@@ -40,23 +47,36 @@ export function MinesGame({
   const [round, setRound] = useState<MinesRoundState | undefined>();
   const [pending, start] = useTransition();
   const [busy, setBusy] = useState<number | undefined>();
-  // One runner for the whole session, so an in-flight demo round survives
-  // re-renders the same way a server round does.
-  // A lazy `useState` initialiser rather than a ref assigned during render:
-  // it runs exactly once and keeps the render pure.
+  const [history, setHistory] = useState<readonly HistoryEntry[]>([]);
+  const [shake, setShake] = useState(false);
+
+  // A lazy initialiser rather than a ref assigned during render: it runs once
+  // and keeps the render pure.
   const [runner] = useState(() => (demo ? createMinesDemo() : undefined));
 
   const playing = Boolean(round?.ok && round.roundId && !round.finished);
   const revealed = round?.revealed ?? [];
   const mineTiles = round?.mineTiles;
+  const finished = Boolean(round?.finished);
 
-  const current = round?.multiplier ?? 10_000;
+  const current = round?.multiplier ?? MULTIPLIER_SCALE;
   const next = round?.nextMultiplier ?? minesMultiplier(mines, 1);
-
   const projected = useMemo(
-    () => (stake * BigInt(current)) / 10_000n,
+    () => (stake * BigInt(Math.max(current, MULTIPLIER_SCALE))) / BigInt(MULTIPLIER_SCALE),
     [stake, current],
   );
+
+  const bustTile = round?.busted ? revealed[revealed.length - 1] : undefined;
+
+  function record(state: MinesRoundState) {
+    if (!state.finished) return;
+    setHistory((h) =>
+      pushHistory(h, {
+        id: state.roundId ?? String(Date.now()),
+        multiplier: state.busted ? 0 : (state.multiplier ?? 0),
+      }),
+    );
+  }
 
   function begin() {
     unlockSound();
@@ -84,11 +104,18 @@ export function MinesGame({
     setRound(state);
     setBusy(undefined);
     if (state.balance) setBalance(BigInt(state.balance));
+    record(state);
 
-    if (state.busted) feedback("break", 0, [40, 30, 60]);
-    else if (state.finished) feedback("cashout", 0, [12, 24, 12]);
-    // The note climbs with the tile count, so a long run runs up the scale.
-    else feedback("step", (state.revealed?.length ?? 1) - 1, 10);
+    if (state.busted) {
+      feedback("break", 0, [45, 30, 70]);
+      setShake(true);
+      window.setTimeout(() => setShake(false), 700);
+    } else if (state.finished) {
+      celebrate(state.multiplier ?? 0);
+    } else {
+      // The note climbs with the tile count, so a long run runs up the scale.
+      feedback("step", (state.revealed?.length ?? 1) - 1, 10);
+    }
   }
 
   function reveal(tile: number) {
@@ -97,7 +124,9 @@ export function MinesGame({
     setBusy(tile);
 
     if (demo && runner) {
-      applyReveal(runner.reveal(tile));
+      // A beat before the answer: instant resolution reads as a recolour, and
+      // the held breath is most of what makes this game work.
+      window.setTimeout(() => applyReveal(runner.reveal(tile)), 160);
       return;
     }
 
@@ -113,12 +142,8 @@ export function MinesGame({
     const settle = (state: MinesRoundState) => {
       setRound(state);
       if (state.balance) setBalance(BigInt(state.balance));
-      const multiplier = state.multiplier ?? 0;
-      feedback(
-        multiplier >= 50_000 ? "bigWin" : "cashout",
-        Math.min(1, multiplier / 200_000),
-        [12, 24, 12],
-      );
+      record(state);
+      celebrate(state.multiplier ?? 0);
     };
 
     if (demo && runner) {
@@ -131,100 +156,40 @@ export function MinesGame({
     });
   }
 
-  function tileClass(index: number): string {
-    const isRevealed = revealed.includes(index);
-    const isMine = mineTiles?.includes(index) ?? false;
-    const isHit = round?.busted && revealed[revealed.length - 1] === index;
-
-    if (isHit) return "border-night-red bg-night-red/25 text-night-red";
-    if (isMine && round?.finished) return "border-night-rule bg-night-sunk text-night-muted";
-    if (isRevealed) return "border-night-green/50 bg-night-green/15 text-night-green";
-    if (busy === index) return "border-night-blue bg-night-blue/10";
-    return cn(
-      "border-night-rule-strong bg-night-sunk",
-      playing && "hover:border-night-muted enabled:hover:-translate-y-px",
-    );
-  }
-
   return (
     <GameLayout
+      game="mines"
       board={
-        <div className="rounded-[10px] border border-night-rule bg-night-raised p-4 sm:p-6">
-          <div className="flex items-baseline justify-between gap-3">
-            <p className="label-mono text-night-muted">
-              {playing
-                ? `${revealed.length} safe · ${mines} mines`
-                : round?.finished
-                  ? round.busted
-                    ? "Hit a mine"
-                    : "Cashed out"
-                  : `${mines} mines`}
-            </p>
-            <p
-              key={current}
-              className={cn(
-                "figure-num text-[1.25rem] animate-[kyro-digit-in_var(--duration-base)_var(--ease-out-quiet)]",
-                round?.busted ? "text-night-red" : playing ? "text-night-green" : "text-night-text",
-              )}
-            >
-              {formatMultiplier(round?.busted ? 0 : current)}
-            </p>
-          </div>
-
-          <div
-            role="grid"
-            aria-label="Mines board"
-            className="mt-4 grid grid-cols-5 gap-1.5 sm:gap-2"
-          >
-            {Array.from({ length: MINES_TILES }, (_, index) => (
-              <button
-                key={index}
-                type="button"
-                role="gridcell"
-                onClick={() => reveal(index)}
-                disabled={!playing || revealed.includes(index) || busy !== undefined}
-                aria-label={`Tile ${index + 1}${
-                  revealed.includes(index)
-                    ? ", safe"
-                    : mineTiles?.includes(index)
-                      ? ", mine"
-                      : ""
-                }`}
-                className={cn(
-                  "aspect-square rounded-[6px] border text-[0.9375rem] transition-all",
-                  "duration-[var(--duration-fast)] ease-[var(--ease-out-quiet)] disabled:cursor-default",
-                  tileClass(index),
-                )}
-              >
-                <span aria-hidden="true">
-                  {revealed.includes(index)
-                    ? round?.busted && revealed[revealed.length - 1] === index
-                      ? "✕"
-                      : "✓"
-                    : mineTiles?.includes(index) && round?.finished
-                      ? "✕"
-                      : ""}
-                </span>
-              </button>
-            ))}
-          </div>
-
-          <p aria-live="polite" className="mt-4 min-h-[2.5rem] text-small text-night-muted">
-            {round?.error ? (
+        <GameBoard
+          game="mines"
+          history={history}
+          shake={shake}
+          win={
+            finished && !round?.busted
+              ? {
+                  multiplier: round?.multiplier,
+                  payout: BigInt(round?.payout ?? "0"),
+                  asset,
+                  roundKey: round?.roundId,
+                }
+              : undefined
+          }
+          status={
+            round?.error ? (
               <span className="text-night-amber">{round.error}</span>
             ) : round?.busted ? (
-              <>You hit a mine on tile {(revealed[revealed.length - 1] ?? 0) + 1}. Round over.</>
-            ) : round?.finished ? (
+              <>You hit a mine on tile {(bustTile ?? 0) + 1}. Round over.</>
+            ) : finished ? (
               <>
-                Cashed out at {formatMultiplier(current)} for{" "}
+                Took{" "}
                 <span className="figure-num text-night-green">
-                  {formatCrypto(cryptoAmount(BigInt(round.payout ?? "0"), asset))}
-                </span>
-                .
+                  {formatCrypto(cryptoAmount(BigInt(round?.payout ?? "0"), asset))}
+                </span>{" "}
+                at {formatMultiplier(current)}.
               </>
             ) : playing ? (
               <>
-                Cash out for{" "}
+                Take{" "}
                 <span className="figure-num text-night-text">
                   {formatCrypto(cryptoAmount(projected, asset))}
                 </span>
@@ -232,9 +197,91 @@ export function MinesGame({
               </>
             ) : (
               "Choose how many mines, set your stake, and start."
-            )}
-          </p>
-        </div>
+            )
+          }
+        >
+          <BoardHeader
+            label={
+              playing
+                ? `${revealed.length} safe · ${mines} mines`
+                : finished
+                  ? round?.busted
+                    ? "Hit a mine"
+                    : "Cashed out"
+                  : `${mines} mines`
+            }
+            tone={round?.busted ? "lose" : playing || finished ? "win" : "neutral"}
+            value={
+              // A bust is not a multiplier of zero-point-something — it is the
+              // absence of one, and a counter ticking down to nothing reads as
+              // a payout rather than a loss.
+              round?.busted ? (
+                "—"
+              ) : (
+                <AnimatedNumber value={current / MULTIPLIER_SCALE} suffix="×" />
+              )
+            }
+          />
+
+          <div
+            role="grid"
+            aria-label="Mines board"
+            className="mt-4 grid grid-cols-5 gap-2 sm:gap-2.5"
+          >
+            {Array.from({ length: MINES_TILES }, (_, index) => {
+              const isSafe = revealed.includes(index) && index !== bustTile;
+              const isBust = index === bustTile;
+              const isMine = (mineTiles?.includes(index) ?? false) && finished && !isBust;
+              const isTurning = busy === index;
+              const face = isSafe || isBust || isMine;
+
+              return (
+                <button
+                  key={index}
+                  type="button"
+                  role="gridcell"
+                  onClick={() => reveal(index)}
+                  disabled={!playing || revealed.includes(index) || busy !== undefined}
+                  aria-label={`Tile ${index + 1}${
+                    isSafe ? ", safe" : isBust ? ", mine" : isMine ? ", mine" : ""
+                  }`}
+                  className={cn(
+                    "relative aspect-square rounded-[9px] border text-[1.125rem]",
+                    "transition-[transform,border-color,background-color,box-shadow]",
+                    "duration-[var(--duration-base)] ease-[var(--ease-out-quiet)]",
+                    "disabled:cursor-default [transform-style:preserve-3d]",
+                    isBust && "glow-lose border-night-red bg-night-red/25 text-night-red",
+                    isSafe &&
+                      "glow-win border-night-green/60 bg-night-green/18 text-night-green",
+                    isMine && "border-night-red/35 bg-night-red/10 text-night-red/70",
+                    !face &&
+                      playing &&
+                      "tile-idle hover:tile-idle-hover hover:-translate-y-0.5 hover:border-[var(--accent)]",
+                    !face && !playing && "tile-idle opacity-45",
+                    isTurning && "border-[var(--accent)] bg-[var(--accent)]/20",
+                  )}
+                  style={
+                    isTurning
+                      ? { animation: "kyro-flip-out 160ms var(--ease-out-quiet) forwards" }
+                      : face
+                        ? { animation: "kyro-flip-in 200ms var(--ease-out-quiet)" }
+                        : undefined
+                  }
+                >
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "absolute inset-0 flex items-center justify-center",
+                      isSafe && "animate-[kyro-pop_var(--duration-slow)_var(--ease-out-quiet)]",
+                    )}
+                  >
+                    {isSafe ? <Gem /> : isBust || isMine ? <Bomb dim={isMine} /> : null}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </GameBoard>
       }
       controls={
         <BetPanel
@@ -243,29 +290,48 @@ export function MinesGame({
           stake={stake}
           onStakeChange={setStake}
           disabled={playing || pending}
+          demo={demo}
+          summary={
+            playing ? (
+              <dl className="space-y-1.5 border-t border-night-rule pt-4">
+                <div className="flex items-baseline gap-1.5">
+                  <dt className="flex-none text-small text-night-muted">Take now</dt>
+                  <span aria-hidden="true" className="leader-night" />
+                  <dd className="figure-num flex-none text-small text-night-green">
+                    {formatMultiplier(current)}
+                  </dd>
+                </div>
+                <div className="flex items-baseline gap-1.5">
+                  <dt className="flex-none text-small text-night-muted">One more tile</dt>
+                  <span aria-hidden="true" className="leader-night" />
+                  <dd className="figure-num flex-none text-small">{formatMultiplier(next)}</dd>
+                </div>
+              </dl>
+            ) : (
+              <div className="flex items-baseline gap-1.5 border-t border-night-rule pt-4">
+                <span className="flex-none text-small text-night-muted">First tile pays</span>
+                <span aria-hidden="true" className="leader-night" />
+                <span className="figure-num flex-none text-small">
+                  {formatMultiplier(minesMultiplier(mines, 1))}
+                </span>
+              </div>
+            )
+          }
           action={
             playing ? (
-              <Button
-                tone="night"
-                size="lg"
-                full
+              <PlayButton
+                variant="cash"
                 onClick={cashOut}
                 disabled={pending || revealed.length === 0}
               >
                 {revealed.length === 0
-                  ? "Reveal a tile first"
-                  : `Cash out ${formatMultiplier(current)}`}
-              </Button>
+                  ? "Open a tile first"
+                  : `Take ${formatCrypto(cryptoAmount(projected, asset))}`}
+              </PlayButton>
             ) : (
-              <Button
-                tone="night"
-                size="lg"
-                full
-                onClick={begin}
-                disabled={pending || stake <= 0n || stake > balance}
-              >
-                {pending ? "Dealing…" : round?.finished ? "Play again" : "Start round"}
-              </Button>
+              <PlayButton onClick={begin} disabled={pending || stake <= 0n || stake > balance}>
+                {pending ? "Dealing…" : finished ? "Play again" : "Start"}
+              </PlayButton>
             )
           }
         >
@@ -288,9 +354,9 @@ export function MinesGame({
                   aria-pressed={mines === count}
                   disabled={playing || pending}
                   className={cn(
-                    "tap rounded-[6px] border text-small transition-colors",
+                    "tap rounded-[7px] border text-small transition-colors active:translate-y-px",
                     mines === count
-                      ? "border-night-blue bg-night-blue/15 text-night-text"
+                      ? "border-[var(--accent)] bg-[var(--accent)]/15 text-night-text"
                       : "border-night-rule-strong bg-night-sunk text-night-muted hover:text-night-text",
                   )}
                 >
@@ -298,28 +364,42 @@ export function MinesGame({
                 </button>
               ))}
             </div>
-
-            <dl className="mt-5 space-y-1.5 border-t border-night-rule pt-4">
-              <div className="flex items-baseline gap-1.5">
-                <dt className="flex-none text-small text-night-muted">
-                  {playing ? "Cash out now" : "First tile pays"}
-                </dt>
-                <span aria-hidden="true" className="leader-night" />
-                <dd className="figure-num flex-none text-small">
-                  {formatMultiplier(playing ? current : minesMultiplier(mines, 1))}
-                </dd>
-              </div>
-              {playing ? (
-                <div className="flex items-baseline gap-1.5">
-                  <dt className="flex-none text-small text-night-muted">One more tile</dt>
-                  <span aria-hidden="true" className="leader-night" />
-                  <dd className="figure-num flex-none text-small">{formatMultiplier(next)}</dd>
-                </div>
-              ) : null}
-            </dl>
           </div>
         </BetPanel>
       }
     />
+  );
+}
+
+/** A cut stone. Drawn rather than an emoji, so it matches the type system. */
+function Gem() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" aria-hidden="true">
+      <path
+        d="M6 3h12l4 6-10 12L2 9z"
+        fill="currentColor"
+        fillOpacity="0.22"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <path d="M2 9h20M8 3l-2 6 6 12 6-12-2-6" stroke="currentColor" strokeWidth="1.2" opacity="0.75" />
+    </svg>
+  );
+}
+
+function Bomb({ dim }: { readonly dim?: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={cn("h-6 w-6", dim && "opacity-80")}
+      fill="none"
+      aria-hidden="true"
+    >
+      <circle cx="10.5" cy="14.5" r="6.5" fill="currentColor" fillOpacity="0.3" stroke="currentColor" strokeWidth="1.6" />
+      {/* Fuse: a curve out of the casing, with a spark at the end. */}
+      <path d="M15 10c1.4-1.6 2.6-2.4 4-2.6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M19.6 4.4v2M21.8 6.6h-2M21 4.9l-1.2 1.2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
   );
 }

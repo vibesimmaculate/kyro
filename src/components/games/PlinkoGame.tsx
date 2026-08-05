@@ -1,29 +1,49 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { BetPanel } from "@/components/games/BetPanel";
+import { BetPanel, PlayButton } from "@/components/games/BetPanel";
+import { GameBoard, type HistoryEntry } from "@/components/games/GameBoard";
 import { GameLayout } from "@/components/games/GameLayout";
-import { Button } from "@/components/ui/Button";
+import { pushHistory } from "@/components/games/GameHistory";
 import { cn } from "@/lib/cn";
+import { prefersReducedMotion } from "@/lib/use-reduced-motion";
 import { PLINKO_MULTIPLIERS, PLINKO_ROWS, formatMultiplier } from "@/lib/games";
+import { demoPlinko } from "@/lib/games/demo";
 import { crypto as cryptoAmount } from "@/lib/money/amounts";
 import { formatCrypto } from "@/lib/money/format";
 import type { CryptoCode } from "@/lib/money/currencies";
+import { celebrate, feedback, play as playSound, unlockSound } from "@/lib/sound";
 import { playPlinkoRound, type RoundResult } from "@/server/games/play";
-import { demoPlinko } from "@/lib/games/demo";
-import { feedback, play as playSound, unlockSound } from "@/lib/sound";
 
 /**
  * Plinko.
  *
- * The ball's path is decided by the seeds, not by physics — twelve left-or-right
- * choices, each one a bit from the round's HMAC. The animation walks that exact
- * path, so what you watch is the proof, replayed at a speed a person can read.
+ * The ball is drawn on a canvas and falls with gravity, squashing on each peg
+ * and deflecting off it. The path is not simulated, though — it is *steered*.
+ * The seed decides left or right on every row before the ball is released, and
+ * the animation walks that decision. Free physics would be prettier in theory
+ * and unprovable in practice; this way the drop you watch is the drop the
+ * commitment hash already promised.
  *
- * Reduced motion drops the ball straight into its bucket.
+ * The fall takes about a second and a half. That wait is the game: an instant
+ * result is just a number appearing, and nobody wants to watch a number appear.
  */
 
-const STEP_MS = 110;
+const ROW_MS = 105;
+
+interface Ball {
+  x: number;
+  y: number;
+  vy: number;
+  row: number;
+  squash: number;
+}
+
+interface PegHit {
+  row: number;
+  col: number;
+  at: number;
+}
 
 export function PlinkoGame({
   asset,
@@ -37,56 +57,180 @@ export function PlinkoGame({
   const [balance, setBalance] = useState(initialBalance);
   const [stake, setStake] = useState<bigint>(() => initialBalance / 20n);
   const [result, setResult] = useState<RoundResult | undefined>();
-  const [step, setStep] = useState(PLINKO_ROWS);
+  const [history, setHistory] = useState<readonly HistoryEntry[]>([]);
+  const [dropping, setDropping] = useState(false);
+  const [landedBucket, setLandedBucket] = useState<number | undefined>();
   const [pending, start] = useTransition();
-  const timer = useRef<number | undefined>(undefined);
 
-  useEffect(() => () => window.clearTimeout(timer.current), []);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const frameRef = useRef<number | undefined>(undefined);
+  const ballRef = useRef<Ball | undefined>(undefined);
+  const hitsRef = useRef<PegHit[]>([]);
 
-  const path = result?.ok ? (result.outcome?.path as ("L" | "R")[] | undefined) : undefined;
-  const bucket = result?.ok ? (result.outcome?.bucket as number | undefined) : undefined;
-  const dropping = step < PLINKO_ROWS;
+  useEffect(
+    () => () => {
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+    },
+    [],
+  );
 
-  function land(outcome: RoundResult) {
-    if (!outcome.ok) return;
-    const payout = BigInt(outcome.payout ?? "0");
-    const multiplier = outcome.multiplier ?? 0;
-    if (payout > 0n && multiplier > 10_000) {
-      feedback(
-        multiplier >= 100_000 ? "bigWin" : "win",
-        Math.min(1, multiplier / 200_000),
-        [10, 30, 10],
-      );
-    } else {
-      feedback("lose", 0, 14);
+  /** Peg positions in normalised 0–1 space, so the canvas can be any size. */
+  function pegPosition(row: number, col: number): { x: number; y: number } {
+    const spread = (col - row / 2) / (PLINKO_ROWS / 2);
+    return { x: 0.5 + spread * 0.47, y: 0.05 + ((row + 1) / (PLINKO_ROWS + 1)) * 0.92 };
+  }
+
+  function draw(now: number) {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
+
+    const dpr = window.devicePixelRatio || 1;
+    const width = canvas.clientWidth;
+    const height = canvas.clientHeight;
+    if (canvas.width !== Math.round(width * dpr) || canvas.height !== Math.round(height * dpr)) {
+      canvas.width = Math.round(width * dpr);
+      canvas.height = Math.round(height * dpr);
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, width, height);
+
+    // ── Pegs ────────────────────────────────────────────────────────────
+    for (let row = 0; row < PLINKO_ROWS; row += 1) {
+      for (let col = 0; col <= row; col += 1) {
+        const { x, y } = pegPosition(row, col);
+        const hit = hitsRef.current.find((h) => h.row === row && h.col === col);
+        // A struck peg flares briefly, so the path stays legible after the
+        // fact rather than only while it is happening.
+        const age = hit ? (now - hit.at) / 280 : 1;
+        const lit = age < 1;
+
+        ctx.beginPath();
+        ctx.arc(x * width, y * height, lit ? 5 - age * 2 : 2.6, 0, Math.PI * 2);
+        ctx.fillStyle = lit ? `rgba(169,123,255,${1 - age})` : "rgba(140,150,170,0.4)";
+        ctx.fill();
+      }
+    }
+
+    // ── Ball ────────────────────────────────────────────────────────────
+    const ball = ballRef.current;
+    if (ball) {
+      const px = ball.x * width;
+      const py = ball.y * height;
+      const squash = 1 + ball.squash * 0.45;
+
+      for (let i = 3; i > 0; i -= 1) {
+        ctx.beginPath();
+        ctx.arc(px, py - i * 7, 7 - i * 1.4, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(169,123,255,${0.09 * (4 - i)})`;
+        ctx.fill();
+      }
+
+      ctx.save();
+      ctx.translate(px, py);
+      ctx.scale(1 / squash, squash);
+      ctx.beginPath();
+      ctx.arc(0, 0, 8, 0, Math.PI * 2);
+      const gradient = ctx.createRadialGradient(-3, -3, 1, 0, 0, 9);
+      gradient.addColorStop(0, "#e9dcff");
+      gradient.addColorStop(1, "#a97bff");
+      ctx.fillStyle = gradient;
+      ctx.fill();
+      ctx.restore();
     }
   }
 
-  function drop(outcome: RoundResult) {
-    setResult(outcome);
-    if (outcome.ok && outcome.balance) setBalance(BigInt(outcome.balance));
-    if (!outcome.ok) return;
+  function release(path: readonly ("L" | "R")[], onDone: () => void) {
+    hitsRef.current = [];
 
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reduced = prefersReducedMotion();
     if (reduced) {
-      setStep(PLINKO_ROWS);
-      land(outcome);
+      // No animation at all: the result is simply stated.
+      onDone();
       return;
     }
 
-    setStep(0);
-    const advance = (row: number) => {
-      if (row >= PLINKO_ROWS) {
-        setStep(PLINKO_ROWS);
-        land(outcome);
-        return;
+    ballRef.current = { x: 0.5, y: 0.02, vy: 0, row: 0, squash: 0 };
+    setDropping(true);
+
+    let last = performance.now();
+    let rowStartedAt = last;
+    let col = 0;
+
+    const step = (now: number) => {
+      const dt = Math.min(0.032, (now - last) / 1000);
+      last = now;
+
+      const ball = ballRef.current;
+      if (!ball) return;
+
+      if (ball.row < PLINKO_ROWS) {
+        const from = ball.row === 0 ? { x: 0.5, y: 0.02 } : pegPosition(ball.row - 1, col);
+        const nextCol = (path[ball.row] ?? "L") === "R" ? col + 1 : col;
+        const to = pegPosition(ball.row, nextCol);
+
+        const progress = Math.min(1, (now - rowStartedAt) / ROW_MS);
+        // Horizontal travel eases out; vertical accelerates, so it reads as
+        // falling rather than sliding along a wire.
+        ball.x = from.x + (to.x - from.x) * (1 - Math.pow(1 - progress, 2));
+        ball.y = from.y + (to.y - from.y) * (progress * progress * 0.7 + progress * 0.3);
+        ball.squash = Math.max(0, 1 - Math.abs(progress - 1) * 6);
+
+        if (progress >= 1) {
+          hitsRef.current.push({ row: ball.row, col: nextCol, at: now });
+          playSound("bounce", ball.row / PLINKO_ROWS);
+          col = nextCol;
+          ball.row += 1;
+          rowStartedAt = now;
+          ball.squash = 1;
+        }
+      } else {
+        // Past the last peg: fall freely into the bucket.
+        ball.vy += dt * 1.6;
+        ball.y += ball.vy * dt * 3;
+        ball.squash = Math.max(0, ball.squash - dt * 4);
+
+        if (ball.y >= 0.97) {
+          ballRef.current = undefined;
+          draw(now);
+          setDropping(false);
+          onDone();
+          return;
+        }
       }
-      setStep(row);
-      // One tap per peg, pitched a little lower each row as the ball falls.
-      playSound("bounce", row / PLINKO_ROWS);
-      timer.current = window.setTimeout(() => advance(row + 1), STEP_MS);
+
+      draw(now);
+      frameRef.current = requestAnimationFrame(step);
     };
-    advance(0);
+
+    frameRef.current = requestAnimationFrame(step);
+  }
+
+  function land(outcome: RoundResult) {
+    if (!outcome.ok) return;
+    const bucket = outcome.outcome?.bucket as number;
+    const multiplier = outcome.multiplier ?? 0;
+
+    setLandedBucket(bucket);
+    setHistory((h) => pushHistory(h, { id: outcome.roundId ?? String(Date.now()), multiplier }));
+
+    // Above 1.00× is a profit and gets the celebration. Anything at or below
+    // it returned no more than the stake, whatever it paid out.
+    if (multiplier > 10_000) {
+      celebrate(multiplier);
+    } else {
+      feedback("land", 0, 12);
+      playSound("lose");
+    }
+  }
+
+  function begin(outcome: RoundResult) {
+    setResult(outcome);
+    setLandedBucket(undefined);
+    if (outcome.ok && outcome.balance) setBalance(BigInt(outcome.balance));
+    if (!outcome.ok) return;
+
+    release((outcome.outcome?.path as ("L" | "R")[]) ?? [], () => land(outcome));
   }
 
   function dropBall() {
@@ -94,7 +238,7 @@ export function PlinkoGame({
     playSound("drop");
 
     if (demo) {
-      drop(demoPlinko(stake));
+      begin(demoPlinko(stake));
       return;
     }
 
@@ -102,73 +246,71 @@ export function PlinkoGame({
     form.set("asset", asset);
     form.set("stake", String(stake));
     start(async () => {
-      drop(await playPlinkoRound(form));
+      begin(await playPlinkoRound(form));
     });
   }
 
-  // Position after `step` bounces: x is how far right the ball has drifted.
-  const rightsSoFar = path?.slice(0, step).filter((d) => d === "R").length ?? 0;
-  const ballRow = Math.min(step, PLINKO_ROWS);
-  const ballX = path ? ((rightsSoFar - ballRow / 2) / (PLINKO_ROWS / 2)) * 50 + 50 : 50;
-  const ballY = (ballRow / PLINKO_ROWS) * 100;
+  const busy = pending || dropping;
 
   return (
     <GameLayout
+      game="plinko"
       board={
-        <div className="rounded-[10px] border border-night-rule bg-night-raised p-4 sm:p-6">
-          <div className="relative aspect-[4/3] w-full">
-            {/* The pegs. A triangle, twelve rows deep. */}
-            <svg
-              viewBox="0 0 100 100"
-              preserveAspectRatio="none"
-              className="absolute inset-0 h-full w-full"
-              aria-hidden="true"
-            >
-              {Array.from({ length: PLINKO_ROWS }, (_, row) =>
-                Array.from({ length: row + 1 }, (_, peg) => {
-                  const x = 50 + ((peg - row / 2) / (PLINKO_ROWS / 2)) * 50;
-                  const y = ((row + 1) / PLINKO_ROWS) * 100;
-                  return (
-                    <circle
-                      key={`${row}-${peg}`}
-                      cx={x}
-                      cy={y - 4}
-                      r="0.7"
-                      fill="var(--color-night-rule-strong)"
-                    />
-                  );
-                }),
-              )}
+        <GameBoard
+          game="plinko"
+          history={history}
+          win={
+            landedBucket !== undefined && result?.ok
+              ? {
+                  multiplier: result.multiplier,
+                  payout: BigInt(result.payout ?? "0"),
+                  asset,
+                  roundKey: result.roundId,
+                }
+              : undefined
+          }
+          status={
+            result && !result.ok ? (
+              <span className="text-night-amber">{result.error}</span>
+            ) : landedBucket !== undefined && result?.ok ? (
+              <>
+                Bucket {landedBucket + 1} of 13 —{" "}
+                {formatMultiplier(PLINKO_MULTIPLIERS[landedBucket] ?? 0)}, paying{" "}
+                <span className="figure-num text-night-text">
+                  {formatCrypto(cryptoAmount(BigInt(result.payout ?? "0"), asset))}
+                </span>
+                .
+              </>
+            ) : dropping ? (
+              "Falling…"
+            ) : (
+              "Drop a ball. The middle is likely and cheap; the edges are rare and not."
+            )
+          }
+        >
+          <canvas
+            ref={canvasRef}
+            className="block aspect-[5/4] w-full"
+            role="img"
+            aria-label="Plinko board"
+          />
 
-              {path ? (
-                <circle
-                  cx={ballX}
-                  cy={Math.max(2, ballY - 4)}
-                  r="1.8"
-                  fill="var(--color-night-blue)"
-                  style={{
-                    transition: dropping
-                      ? `cx ${STEP_MS}ms linear, cy ${STEP_MS}ms linear`
-                      : undefined,
-                  }}
-                />
-              ) : null}
-            </svg>
-          </div>
-
-          {/* The buckets, with their real multipliers. */}
-          <ol className="mt-3 grid grid-cols-13 gap-[2px]" style={{ gridTemplateColumns: `repeat(${PLINKO_ROWS + 1}, minmax(0, 1fr))` }}>
+          <ol
+            className="mt-2 grid gap-[3px]"
+            style={{ gridTemplateColumns: `repeat(${PLINKO_ROWS + 1}, minmax(0, 1fr))` }}
+          >
             {PLINKO_MULTIPLIERS.map((multiplier, index) => {
-              const landed = !dropping && bucket === index;
+              const landed = landedBucket === index;
+              const rich = multiplier >= 30_000;
               return (
                 <li
                   key={index}
                   className={cn(
-                    "rounded-[3px] border py-1.5 text-center transition-colors duration-[var(--duration-base)]",
+                    "rounded-[4px] border py-1.5 text-center transition-all duration-[var(--duration-base)]",
                     landed
-                      ? "border-night-blue bg-night-blue/25 text-night-text"
-                      : multiplier >= 20_000
-                        ? "border-night-rule bg-night-sunk text-night-muted"
+                      ? "glow-accent -translate-y-1 border-[var(--accent)] bg-[var(--accent)]/30 text-night-text"
+                      : rich
+                        ? "border-night-gold/35 bg-night-gold/10 text-night-gold"
                         : "border-night-rule bg-night-sunk text-night-muted",
                   )}
                 >
@@ -179,26 +321,7 @@ export function PlinkoGame({
               );
             })}
           </ol>
-
-          <p aria-live="polite" className="mt-4 min-h-[2.5rem] text-small text-night-muted">
-            {result && !result.ok ? (
-              <span className="text-night-amber">{result.error}</span>
-            ) : !dropping && bucket !== undefined ? (
-              <>
-                Bucket {bucket + 1} of 13 —{" "}
-                {formatMultiplier(PLINKO_MULTIPLIERS[bucket] ?? 0)}, paying{" "}
-                <span className="figure-num text-night-text">
-                  {formatCrypto(cryptoAmount(BigInt(result?.payout ?? "0"), asset))}
-                </span>
-                .
-              </>
-            ) : dropping ? (
-              "Falling…"
-            ) : (
-              "Drop a ball. Twelve bounces, thirteen places to land — the middle is likely and cheap, the edges are rare and not."
-            )}
-          </p>
-        </div>
+        </GameBoard>
       }
       controls={
         <BetPanel
@@ -206,29 +329,20 @@ export function PlinkoGame({
           balance={balance}
           stake={stake}
           onStakeChange={setStake}
-          disabled={pending || dropping}
+          disabled={busy}
           demo={demo}
-          action={
-            <Button
-              tone="night"
-              size="lg"
-              full
-              onClick={dropBall}
-              disabled={pending || dropping || stake <= 0n || stake > balance}
-            >
-              {pending || dropping ? "Falling…" : "Drop"}
-            </Button>
-          }
-        >
-          <div className="border-t border-night-rule pt-4">
-            <p className="label-mono text-night-muted">The spread</p>
-            <p className="mt-2 text-small text-night-muted">
+          summary={
+            <p className="border-t border-night-rule pt-4 text-micro text-night-muted">
               The centre bucket comes up about 23 times in 100; each edge about once in
-              4 096. The multipliers are derived from exactly those odds — they are not
-              chosen numbers.
+              4 096. The multipliers are computed from exactly those odds.
             </p>
-          </div>
-        </BetPanel>
+          }
+          action={
+            <PlayButton onClick={dropBall} disabled={busy || stake <= 0n || stake > balance}>
+              {busy ? "Falling…" : "Drop"}
+            </PlayButton>
+          }
+        />
       }
     />
   );

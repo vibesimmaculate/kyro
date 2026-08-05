@@ -14,10 +14,10 @@ test.describe("demo mode", () => {
       await page.goto(`/games/${game}`);
 
       await expect(
-        page.getByText("You are playing in demo mode."),
+        page.getByText("Demo mode.", { exact: true }),
         `${game} should offer demo mode`,
       ).toBeVisible();
-      await expect(page.getByText("demo credits").first()).toBeVisible();
+      await expect(page.getByRole("link", { name: "Play for real" })).toBeVisible();
 
       // The board must be live, not a locked preview.
       await expect(page.getByLabel("Stake")).toBeEnabled();
@@ -27,14 +27,16 @@ test.describe("demo mode", () => {
   test("says plainly that demo rounds are not provably fair", async ({ page }) => {
     await page.goto("/games/tower");
     await expect(page.getByText(/not.*provably fair/i)).toBeVisible();
-    await expect(page.getByText(/generated in your browser/i)).toBeVisible();
+    await expect(page.getByText(/browser generates the seed/i)).toBeVisible();
   });
 
   test("plays a full Tower round and moves the demo balance", async ({ page }) => {
     await page.goto("/games/tower");
 
     await page.getByRole("button", { name: "Start climbing" }).click();
-    await expect(page.getByRole("button", { name: /Clear a floor first/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Clear a floor first/ })).toBeVisible({
+      timeout: 15_000,
+    });
 
     // Floor 1 is the bottom of the tower, so it is the last row on screen.
     await page.getByRole("button", { name: "Floor 1, door 1" }).click();
@@ -42,17 +44,17 @@ test.describe("demo mode", () => {
     // Either it held and there is money to take, or it did not. Both are fine;
     // a hang is not.
     await expect(
-      page.getByText(/Take |wrong one|Climb again/).first(),
+      page.getByText(/Take |wrong one|try floor/i).first(),
     ).toBeVisible({ timeout: 15_000 });
   });
 
   test("keeps a demo balance across a reload, and can reset it", async ({ page }) => {
     await page.goto("/games/coin-flip");
     await page.getByRole("button", { name: "Flip" }).click();
-    await expect(page.getByText(/^(Won|Lost)$/)).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/it landed (heads|tails)/i)).toBeVisible({ timeout: 15_000 });
 
     await page.reload();
-    await page.getByRole("button", { name: "Reset demo credits" }).click();
+    await page.getByRole("button", { name: "Reset", exact: true }).click();
     // The formatter groups with a non-breaking space, so this matches loosely
     // rather than hard-coding an invisible character into the assertion.
     await expect(page.getByText(/1\s?000\.00 USDT/).first()).toBeVisible();

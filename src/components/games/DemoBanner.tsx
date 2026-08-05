@@ -43,46 +43,44 @@ export function DemoBanner({ className }: { readonly className?: string }) {
   return (
     <div
       className={cn(
-        "rounded-[10px] border border-night-blue/40 bg-night-blue/10 p-4",
+        "flex flex-wrap items-center gap-x-4 gap-y-3 rounded-[10px] border",
+        "border-night-blue/35 bg-night-blue/10 px-4 py-3",
         className,
       )}
     >
-      <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
-        <p className="text-subhead font-medium">You are playing in demo mode.</p>
-        <p className="figure-num text-small text-night-muted">
-          {formatCrypto(cryptoAmount(balance, "USDT"))}{" "}
-          <span className="label-mono">demo credits</span>
-        </p>
-      </div>
-
-      <p className="mt-2 max-w-[68ch] text-small text-night-muted">
-        No account, no deposit, and nothing here is worth anything. The maths is
-        identical to the real game — same multipliers, same 1% edge — but the outcome
-        is generated in your browser, so it is <em className="not-italic text-night-text">not</em>{" "}
-        provably fair. That guarantee only means something when KYRO holds the seed.{" "}
+      <p className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2 text-small">
+        <span className="font-medium text-night-text">Demo mode.</span>
+        <span className="text-night-muted">
+          Real maths, no money — and{" "}
+          <em className="not-italic text-night-text">not</em> provably fair, because your
+          browser generates the seed.
+        </span>
         <Link
           href="/games/fairness"
-          className="text-night-text underline underline-offset-4"
+          className="text-night-muted underline underline-offset-4 hover:text-night-text"
         >
-          How fairness works
+          Why
         </Link>
-        .
       </p>
 
-      <div className="mt-4 flex flex-wrap items-center gap-2">
+      <p className="figure-num flex-none text-small text-night-text">
+        {formatCrypto(cryptoAmount(balance, "USDT"))}
+      </p>
+
+      <div className="flex flex-none items-center gap-2">
+        <button
+          type="button"
+          onClick={topUp}
+          className="tap inline-flex items-center rounded-[8px] border border-night-rule-strong px-3 text-small text-night-muted transition-colors hover:border-night-muted hover:text-night-text"
+        >
+          Reset
+        </button>
         <Link
           href="/sign-up?next=/games"
           className="tap inline-flex items-center rounded-[8px] border border-night-blue bg-night-blue px-4 text-small font-semibold text-night-sunk transition-[filter] hover:brightness-110"
         >
           Play for real
         </Link>
-        <button
-          type="button"
-          onClick={topUp}
-          className="tap inline-flex items-center rounded-[8px] border border-night-rule-strong px-4 text-small text-night-text transition-colors hover:border-night-muted"
-        >
-          Reset demo credits
-        </button>
       </div>
     </div>
   );

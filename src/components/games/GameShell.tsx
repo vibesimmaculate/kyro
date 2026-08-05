@@ -35,7 +35,7 @@ export function GameShell({
   notice,
 }: GameShellProps) {
   return (
-    <div className="shell py-8 md:py-12">
+    <div className="shell py-6 md:py-8">
       <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
         <div>
           <h1 className="text-title">{meta.name}</h1>
@@ -46,7 +46,7 @@ export function GameShell({
         </p>
       </div>
 
-      <p className="mt-4 max-w-[58ch] text-body text-night-muted">{meta.rule}</p>
+      <p className="mt-2 max-w-[62ch] text-small text-night-muted">{meta.rule}</p>
 
       {gate ? (
         <>
@@ -62,7 +62,7 @@ export function GameShell({
       ) : (
         <>
           {notice}
-          <div className="mt-8">{children}</div>
+          <div className="mt-5">{children}</div>
         </>
       )}
 

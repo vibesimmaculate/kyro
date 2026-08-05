@@ -35,10 +35,13 @@ test.describe("games", () => {
     await page.getByRole("button", { name: /^heads$/i }).click();
     await page.getByRole("button", { name: "Flip" }).click();
 
-    // The result banner is a live region, so waiting on it also proves the
-    // announcement a screen reader would receive actually appears.
-    await expect(page.getByText(/^(Won|Lost)$/)).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByText(/It landed (heads|tails)\./)).toBeVisible();
+    // The coin spins before it answers, so this also proves the reveal
+    // animation resolves rather than leaving the board stuck mid-flight.
+    // The status line is a live region, so waiting on it additionally proves
+    // the announcement a screen reader would receive actually arrives.
+    await expect(page.getByText(/it landed (heads|tails)/i)).toBeVisible({
+      timeout: 20_000,
+    });
   });
 
   test("dice moves payout and target together", async ({ page }) => {
@@ -50,14 +53,14 @@ test.describe("games", () => {
     await expect(page.getByText("1.98×").first()).toBeVisible();
 
     await page.getByRole("button", { name: "Roll", exact: true }).click();
-    await expect(page.getByText(/^(Won|Lost)$/)).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText(/is (not )?(under|over)/)).toBeVisible({ timeout: 20_000 });
   });
 
   test("mines reveals a tile against a board fixed by the seeds", async ({ page }) => {
     await page.goto("/games/mines");
 
-    await page.getByRole("button", { name: "Start round" }).click();
-    await expect(page.getByRole("button", { name: /Cash out|Reveal a tile first/ })).toBeVisible({
+    await page.getByRole("button", { name: "Start", exact: true }).click();
+    await expect(page.getByRole("button", { name: /Take |Open a tile first/ })).toBeVisible({
       timeout: 20_000,
     });
 
@@ -66,7 +69,7 @@ test.describe("games", () => {
     // Either it was safe and there is something to cash out, or it was a mine
     // and the round ended. Both are correct outcomes; a hang is not.
     await expect(
-      page.getByText(/Cash out for|You hit a mine|Play again/).first(),
+      page.getByText(/Take |hit a mine|open one more/i).first(),
     ).toBeVisible({ timeout: 20_000 });
   });
 

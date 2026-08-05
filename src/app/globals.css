@@ -45,18 +45,43 @@
   --color-red: #b42318;
   --color-red-wash: #fbebe9;
 
-  /* ── Night register: the games wing ──────────────────────────────────── */
-  --color-night: #111315;
-  --color-night-raised: #191c20;
-  --color-night-sunk: #0c0e10;
-  --color-night-rule: #2b2f34;
-  --color-night-rule-strong: #3d4247;
-  --color-night-text: #f4f1ea;
-  --color-night-muted: #8b9198;
+  /* ══════════════════════════════════════════════════════════════════════
+     Night register: the games wing.
+
+     A casino is not a receipt, and pretending otherwise made the first version
+     of these games read like a spreadsheet. This is a deeper, richer ground
+     than the exchange uses, with saturated accents and glow that the paper side
+     would never allow — a different room, lit differently.
+
+     What it still refuses: gradients on text, decorative blobs, and any glow
+     that is not reporting a real state change.
+     ══════════════════════════════════════════════════════════════════════ */
+  --color-night: #0a0c10;
+  --color-night-raised: #14171e;
+  --color-night-lifted: #1b1f28;
+  --color-night-sunk: #06080b;
+  --color-night-rule: #252a34;
+  --color-night-rule-strong: #363d4a;
+  --color-night-text: #f2f4f8;
+  --color-night-muted: #8d95a5;
   --color-night-blue: #5b87ff;
-  --color-night-green: #3fbc8c;
-  --color-night-red: #e5695d;
-  --color-night-amber: #e0a244;
+  --color-night-green: #2fd48b;
+  --color-night-red: #ff5c5c;
+  --color-night-amber: #ffb340;
+  --color-night-violet: #a97bff;
+  --color-night-cyan: #3fd9e8;
+  --color-night-gold: #ffc94a;
+
+  /* Per-game identity. One accent each, so moving between games feels like
+     moving between rooms rather than reskinning the same one. */
+  --accent-tower: #5b87ff;
+  --accent-coin-flip: #ffc94a;
+  --accent-dice: #2fd48b;
+  --accent-mines: #ff8a3d;
+  /* Cyan rather than red: red on the primary button reads as "destructive",
+     and it needs to stay reserved for the moment the curve actually breaks. */
+  --accent-crash: #3fd9e8;
+  --accent-plinko: #a97bff;
 
   /* ── Type ────────────────────────────────────────────────────────────── */
   --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
@@ -334,6 +359,168 @@
 .night ::selection {
   background: var(--color-night-blue);
   color: var(--color-night-sunk);
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════════
+   The games wing: surfaces and glow
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* The board sits on a lit surface rather than a flat panel — a soft radial
+   from the accent, which is what stops the whole wing reading as grey. */
+@utility game-surface {
+  background:
+    radial-gradient(120% 90% at 50% 0%, color-mix(in oklab, var(--accent) 12%, transparent) 0%, transparent 60%),
+    var(--color-night-raised);
+  border: 1px solid var(--color-night-rule);
+  box-shadow:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.04),
+    0 24px 60px -32px rgb(0 0 0 / 0.9);
+}
+
+/* Glow used only to report a live state: an armed control, a win, a bust. */
+@utility glow-accent {
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--accent) 55%, transparent),
+    0 0 24px -4px color-mix(in oklab, var(--accent) 60%, transparent);
+}
+
+@utility glow-win {
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--color-night-green) 60%, transparent),
+    0 0 32px -6px color-mix(in oklab, var(--color-night-green) 70%, transparent);
+}
+
+@utility glow-lose {
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--color-night-red) 55%, transparent),
+    0 0 28px -8px color-mix(in oklab, var(--color-night-red) 55%, transparent);
+}
+
+/* An unopened tile or door: raised, faintly lit from above, and visibly a
+   thing you press rather than a hole in the board. Getting this wrong made the
+   first version of Mines look like an empty table. */
+@utility tile-idle {
+  background: linear-gradient(180deg, #262c38 0%, #1a1f28 100%);
+  border-color: var(--color-night-rule-strong);
+  box-shadow:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.07),
+    0 2px 6px -2px rgb(0 0 0 / 0.6);
+}
+
+@utility tile-idle-hover {
+  background: linear-gradient(180deg, #303745 0%, #212733 100%);
+}
+
+/* The primary action. Chunky on purpose: on a phone this is the only control
+   that matters, and it should be impossible to miss or mis-tap. */
+@utility btn-play {
+  background: var(--accent);
+  color: var(--color-night-sunk);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  border-radius: 10px;
+  box-shadow:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.28),
+    0 8px 20px -8px color-mix(in oklab, var(--accent) 70%, transparent);
+  transition:
+    transform var(--duration-fast) var(--ease-out-quiet),
+    filter var(--duration-fast) var(--ease-out-quiet);
+}
+
+@utility btn-play-press {
+  transform: translateY(1px) scale(0.995);
+  filter: brightness(0.94);
+}
+
+/* ── Motion the casino side needs ───────────────────────────────────────── */
+
+/* A win arriving: overshoot, then settle. */
+@keyframes kyro-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* A tile turning over. Two halves so the face can swap at the midpoint. */
+@keyframes kyro-flip-out {
+  from {
+    transform: rotateY(0deg);
+  }
+  to {
+    transform: rotateY(90deg);
+  }
+}
+
+@keyframes kyro-flip-in {
+  from {
+    transform: rotateY(-90deg);
+  }
+  to {
+    transform: rotateY(0deg);
+  }
+}
+
+/* The coin. Several full turns, decelerating, so the landing is readable. */
+@keyframes kyro-coin-spin {
+  0% {
+    transform: rotateY(0deg) translateY(0);
+  }
+  30% {
+    transform: rotateY(900deg) translateY(-28px);
+  }
+  100% {
+    transform: rotateY(1800deg) translateY(0);
+  }
+}
+
+/* Something going wrong, felt rather than read. */
+@keyframes kyro-shake {
+  0%, 100% { transform: translateX(0); }
+  15% { transform: translateX(-7px); }
+  30% { transform: translateX(6px); }
+  45% { transform: translateX(-4px); }
+  60% { transform: translateX(3px); }
+  80% { transform: translateX(-2px); }
+}
+
+/* A held breath: the control the player is about to press. */
+@keyframes kyro-breathe {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+
+/* Confetti and sparks fall with a little drift. */
+@keyframes kyro-spark {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--dx, 0), var(--dy, 120px)) scale(0.4) rotate(var(--spin, 220deg));
+  }
+}
+
+/* A result landing in the history strip. */
+@keyframes kyro-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(-8px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
 }
 
 /* ══════════════════════════════════════════════════════════════════════════

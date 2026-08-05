@@ -1,23 +1,34 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { BetPanel } from "@/components/games/BetPanel";
+import { BetPanel, PlayButton } from "@/components/games/BetPanel";
+import { GameBoard, type HistoryEntry } from "@/components/games/GameBoard";
 import { GameLayout } from "@/components/games/GameLayout";
-import { ResultBanner } from "@/components/games/ResultBanner";
-import { Button } from "@/components/ui/Button";
+import { pushHistory } from "@/components/games/GameHistory";
 import { cn } from "@/lib/cn";
+import { prefersReducedMotion } from "@/lib/use-reduced-motion";
 import { COIN_FLIP_MULTIPLIER, type CoinSide } from "@/lib/games";
 import { demoCoinFlip } from "@/lib/games/demo";
-import { feedback, play, unlockSound } from "@/lib/sound";
+import { crypto as cryptoAmount } from "@/lib/money/amounts";
+import { formatCrypto } from "@/lib/money/format";
 import type { CryptoCode } from "@/lib/money/currencies";
+import { celebrate, feedback, play as playSound, unlockSound } from "@/lib/sound";
 import { playCoinFlipRound, type RoundResult } from "@/server/games/play";
 
 /**
  * Coin Flip.
  *
- * A square that turns over — no 3D disc, no gold, no spin. The satisfaction is
- * in the timing and the weight of the figure that lands.
+ * The coin actually turns — five full rotations on the Y axis, rising and
+ * falling as it goes, decelerating into the landing. The result exists the
+ * moment the stake is taken; the spin is there because a coin that resolves
+ * instantly is not a coin flip, it is a database read.
+ *
+ * Nine hundred milliseconds: long enough to be a moment, short enough to do
+ * fifty times.
  */
+
+const SPIN_MS = 900;
+
 export function CoinFlipGame({
   asset,
   balance: initialBalance,
@@ -31,23 +42,54 @@ export function CoinFlipGame({
   const [stake, setStake] = useState<bigint>(() => initialBalance / 20n);
   const [pick, setPick] = useState<CoinSide>("heads");
   const [result, setResult] = useState<RoundResult | undefined>();
+  const [history, setHistory] = useState<readonly HistoryEntry[]>([]);
+  const [spinning, setSpinning] = useState(false);
+  const [settled, setSettled] = useState(false);
   const [pending, start] = useTransition();
 
-  function announce(outcome: RoundResult) {
+  function land(outcome: RoundResult) {
+    setSettled(true);
+    setSpinning(false);
+    if (!outcome.ok) return;
+
+    const multiplier = outcome.multiplier ?? 0;
+    setHistory((h) =>
+      pushHistory(h, { id: outcome.roundId ?? String(Date.now()), multiplier }),
+    );
+
+    // Won or lost, and nothing in between: a losing round is never dressed up.
+    if (BigInt(outcome.payout ?? "0") > 0n) celebrate(multiplier);
+    else feedback("lose", 0, 18);
+  }
+
+  function spin(outcome: RoundResult) {
     setResult(outcome);
     if (outcome.ok && outcome.balance) setBalance(BigInt(outcome.balance));
-    if (!outcome.ok) return;
-    // Won or lost, and nothing in between: a losing round is never dressed up.
-    if (BigInt(outcome.payout ?? "0") > 0n) feedback("win", 0.4, [10, 30, 10]);
-    else feedback("lose", 0, 18);
+    if (!outcome.ok) {
+      setSettled(true);
+      setSpinning(false);
+      return;
+    }
+
+    const reduced = prefersReducedMotion();
+    if (reduced) {
+      land(outcome);
+      return;
+    }
+
+    setSpinning(true);
+    playSound("whoosh");
+    window.setTimeout(() => land(outcome), SPIN_MS);
   }
 
   function flip() {
     unlockSound();
-    play("tick");
+    playSound("tick");
+    setSettled(false);
+    setResult(undefined);
 
     if (demo) {
-      announce(demoCoinFlip(stake, pick));
+      spin(demoCoinFlip(stake, pick));
       return;
     }
 
@@ -56,42 +98,90 @@ export function CoinFlipGame({
     form.set("stake", String(stake));
     form.set("pick", pick);
     start(async () => {
-      announce(await playCoinFlipRound(form));
+      spin(await playCoinFlipRound(form));
     });
   }
 
-  const landed = result?.ok ? (result.outcome?.landed as CoinSide | undefined) : undefined;
-  const won = result?.ok ? result.outcome?.won === true : false;
+  const landed = settled && result?.ok ? (result.outcome?.landed as CoinSide | undefined) : undefined;
+  const won = settled && result?.ok ? result.outcome?.won === true : false;
+  const busy = pending || spinning;
+
+  // Mid-spin the coin shows the side it will land on, so the last half-turn
+  // reads as the coin settling rather than as a value swapping in.
+  const face = landed ?? (spinning ? pick : undefined);
 
   return (
     <GameLayout
+      game="coin-flip"
       board={
-        <div className="flex min-h-[24rem] flex-col items-center justify-center rounded-[10px] border border-night-rule bg-night-raised p-8">
-          <div
-            key={result?.roundId ?? "idle"}
-            className={cn(
-              "flex h-36 w-36 items-center justify-center rounded-[10px] border-2 transition-colors",
-              !landed
-                ? "border-night-rule-strong text-night-muted"
-                : won
-                  ? "border-night-green text-night-green"
-                  : "border-night-red text-night-red",
-              landed && "animate-[kyro-digit-in_var(--duration-slow)_var(--ease-out-quiet)]",
-            )}
-          >
-            <span className="label-mono text-[0.8125rem] tracking-[0.2em]">
-              {landed ? landed.toUpperCase() : "—"}
-            </span>
+        <GameBoard
+          game="coin-flip"
+          history={history}
+          win={
+            settled && won
+              ? {
+                  multiplier: result?.multiplier,
+                  payout: BigInt(result?.payout ?? "0"),
+                  asset,
+                  roundKey: result?.roundId,
+                }
+              : undefined
+          }
+          status={
+            result && !result.ok ? (
+              <span className="text-night-amber">{result.error}</span>
+            ) : settled && landed ? (
+              won ? (
+                <>
+                  You called {pick} and it landed {landed} —{" "}
+                  <span className="figure-num text-night-green">
+                    {formatCrypto(cryptoAmount(BigInt(result?.payout ?? "0"), asset))}
+                  </span>
+                  .
+                </>
+              ) : (
+                <>
+                  You called {pick}. It landed {landed}.
+                </>
+              )
+            ) : spinning ? (
+              "In the air…"
+            ) : (
+              "Call a side, set your stake, and flip."
+            )
+          }
+        >
+          <div className="flex min-h-[19rem] items-center justify-center py-6 [perspective:900px]">
+            <div
+              key={result?.roundId ?? "idle"}
+              className={cn(
+                "relative flex h-40 w-40 items-center justify-center rounded-full border-[3px]",
+                "[transform-style:preserve-3d] transition-colors duration-[var(--duration-slow)]",
+                !settled
+                  ? "border-night-rule-strong bg-night-lifted text-night-muted"
+                  : won
+                    ? "glow-win border-night-green bg-night-green/15 text-night-green"
+                    : "glow-lose border-night-red bg-night-red/12 text-night-red",
+              )}
+              style={
+                spinning
+                  ? { animation: `kyro-coin-spin ${SPIN_MS}ms cubic-bezier(0.2,0.7,0.3,1)` }
+                  : settled
+                    ? { animation: "kyro-pop var(--duration-slow) var(--ease-out-quiet)" }
+                    : undefined
+              }
+            >
+              {/* A rim, so the disc has thickness rather than being a circle. */}
+              <span
+                aria-hidden="true"
+                className="absolute inset-[7px] rounded-full border border-current opacity-30"
+              />
+              <span className="label-mono text-[0.8125rem] tracking-[0.2em]">
+                {face ? face.toUpperCase() : "—"}
+              </span>
+            </div>
           </div>
-
-          <p className="mt-6 text-center text-small text-night-muted">
-            {landed
-              ? `You called ${pick}. It landed ${landed}.`
-              : "Call a side, set your stake, and flip."}
-          </p>
-
-          <ResultBanner result={result} asset={asset} className="mt-4 w-full max-w-sm" />
-        </div>
+        </GameBoard>
       }
       controls={
         <BetPanel
@@ -100,18 +190,18 @@ export function CoinFlipGame({
           stake={stake}
           onStakeChange={setStake}
           multiplier={COIN_FLIP_MULTIPLIER}
-          disabled={pending}
+          disabled={busy}
           demo={demo}
+          summary={
+            <p className="border-t border-night-rule pt-4 text-micro text-night-muted">
+              A fair coin would pay 2.00×. KYRO pays 1.98× — the stated 1% edge, and the
+              whole of it.
+            </p>
+          }
           action={
-            <Button
-              tone="night"
-              size="lg"
-              full
-              onClick={flip}
-              disabled={pending || stake <= 0n || stake > balance}
-            >
-              {pending ? "Flipping…" : "Flip"}
-            </Button>
+            <PlayButton onClick={flip} disabled={busy || stake <= 0n || stake > balance}>
+              {busy ? "Flipping…" : "Flip"}
+            </PlayButton>
           }
         >
           <fieldset>
@@ -124,14 +214,15 @@ export function CoinFlipGame({
                   onClick={() => {
                     setPick(side);
                     unlockSound();
-                    play("select");
+                    playSound("select");
                   }}
                   aria-pressed={pick === side}
-                  disabled={pending}
+                  disabled={busy}
                   className={cn(
-                    "tap rounded-[8px] border px-4 text-[0.9375rem] capitalize transition-colors",
+                    "tap flex min-h-12 items-center justify-center rounded-[9px] border",
+                    "text-[0.9375rem] capitalize transition-all active:translate-y-px",
                     pick === side
-                      ? "border-night-blue bg-night-blue/15 text-night-text"
+                      ? "border-[var(--accent)] bg-[var(--accent)]/15 text-night-text"
                       : "border-night-rule-strong bg-night-sunk text-night-muted hover:text-night-text",
                   )}
                 >

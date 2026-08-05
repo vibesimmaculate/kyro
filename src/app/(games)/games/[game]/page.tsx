@@ -95,7 +95,7 @@ export default async function GamePage({
       nonce={live ? session.session.nonce : undefined}
       notice={
         demo ? (
-          <DemoBanner className="mt-6" />
+          <DemoBanner className="mt-4" />
         ) : session && !session.ok ? undefined : undefined
       }
     >
