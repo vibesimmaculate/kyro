@@ -26,6 +26,8 @@ export interface BetPanelProps {
   readonly disabled?: boolean;
   readonly children?: React.ReactNode;
   readonly action: React.ReactNode;
+  /** Marks the balance as demo credits and offers a top-up. */
+  readonly demo?: boolean;
 }
 
 export function BetPanel({
@@ -37,6 +39,7 @@ export function BetPanel({
   disabled,
   children,
   action,
+  demo,
 }: BetPanelProps) {
   const decimals = CRYPTO[asset].decimals;
   const [text, setText] = useState(() => formatStake(stake, decimals));
@@ -59,7 +62,7 @@ export function BetPanel({
           Stake
         </label>
         <span className="text-micro text-night-muted">
-          Balance{" "}
+          {demo ? "Demo balance" : "Balance"}{" "}
           <span className="figure-num text-night-text">
             {formatCrypto(cryptoAmount(balance, asset))}
           </span>

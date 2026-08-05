@@ -15,6 +15,8 @@ import {
   revealMinesTile,
   type MinesRoundState,
 } from "@/server/games/mines";
+import { createMinesDemo } from "@/lib/games/demo";
+import { feedback, play as playSound, unlockSound } from "@/lib/sound";
 
 /**
  * Mines.
@@ -26,11 +28,11 @@ import {
 export function MinesGame({
   asset,
   balance: initialBalance,
-  disabled,
+  demo,
 }: {
   readonly asset: CryptoCode;
   readonly balance: bigint;
-  readonly disabled?: boolean;
+  readonly demo?: boolean;
 }) {
   const [balance, setBalance] = useState(initialBalance);
   const [stake, setStake] = useState<bigint>(() => initialBalance / 20n);
@@ -38,6 +40,11 @@ export function MinesGame({
   const [round, setRound] = useState<MinesRoundState | undefined>();
   const [pending, start] = useTransition();
   const [busy, setBusy] = useState<number | undefined>();
+  // One runner for the whole session, so an in-flight demo round survives
+  // re-renders the same way a server round does.
+  // A lazy `useState` initialiser rather than a ref assigned during render:
+  // it runs exactly once and keeps the render pure.
+  const [runner] = useState(() => (demo ? createMinesDemo() : undefined));
 
   const playing = Boolean(round?.ok && round.roundId && !round.finished);
   const revealed = round?.revealed ?? [];
@@ -52,6 +59,16 @@ export function MinesGame({
   );
 
   function begin() {
+    unlockSound();
+    playSound("select");
+
+    if (demo && runner) {
+      const state = runner.open({ mines, stake });
+      setRound(state);
+      if (state.balance) setBalance(BigInt(state.balance));
+      return;
+    }
+
     const form = new FormData();
     form.set("asset", asset);
     form.set("stake", String(stake));
@@ -63,23 +80,54 @@ export function MinesGame({
     });
   }
 
+  function applyReveal(state: MinesRoundState) {
+    setRound(state);
+    setBusy(undefined);
+    if (state.balance) setBalance(BigInt(state.balance));
+
+    if (state.busted) feedback("break", 0, [40, 30, 60]);
+    else if (state.finished) feedback("cashout", 0, [12, 24, 12]);
+    // The note climbs with the tile count, so a long run runs up the scale.
+    else feedback("step", (state.revealed?.length ?? 1) - 1, 10);
+  }
+
   function reveal(tile: number) {
     if (!playing || !round?.roundId || revealed.includes(tile) || busy !== undefined) return;
+    unlockSound();
     setBusy(tile);
+
+    if (demo && runner) {
+      applyReveal(runner.reveal(tile));
+      return;
+    }
+
     start(async () => {
-      const state = await revealMinesTile(round.roundId as string, tile);
-      setRound(state);
-      setBusy(undefined);
-      if (state.balance) setBalance(BigInt(state.balance));
+      applyReveal(await revealMinesTile(round.roundId as string, tile));
     });
   }
 
   function cashOut() {
     if (!round?.roundId) return;
-    start(async () => {
-      const state = await cashOutMines(round.roundId as string);
+    unlockSound();
+
+    const settle = (state: MinesRoundState) => {
       setRound(state);
       if (state.balance) setBalance(BigInt(state.balance));
+      const multiplier = state.multiplier ?? 0;
+      feedback(
+        multiplier >= 50_000 ? "bigWin" : "cashout",
+        Math.min(1, multiplier / 200_000),
+        [12, 24, 12],
+      );
+    };
+
+    if (demo && runner) {
+      settle(runner.cashOut());
+      return;
+    }
+
+    start(async () => {
+      settle(await cashOutMines(round.roundId as string));
     });
   }
 
@@ -134,7 +182,7 @@ export function MinesGame({
                 type="button"
                 role="gridcell"
                 onClick={() => reveal(index)}
-                disabled={disabled || !playing || revealed.includes(index) || busy !== undefined}
+                disabled={!playing || revealed.includes(index) || busy !== undefined}
                 aria-label={`Tile ${index + 1}${
                   revealed.includes(index)
                     ? ", safe"
@@ -194,7 +242,7 @@ export function MinesGame({
           balance={balance}
           stake={stake}
           onStakeChange={setStake}
-          disabled={disabled || playing || pending}
+          disabled={playing || pending}
           action={
             playing ? (
               <Button
@@ -214,7 +262,7 @@ export function MinesGame({
                 size="lg"
                 full
                 onClick={begin}
-                disabled={disabled || pending || stake <= 0n || stake > balance}
+                disabled={pending || stake <= 0n || stake > balance}
               >
                 {pending ? "Dealing…" : round?.finished ? "Play again" : "Start round"}
               </Button>
@@ -232,9 +280,13 @@ export function MinesGame({
                 <button
                   key={count}
                   type="button"
-                  onClick={() => setMines(count)}
+                  onClick={() => {
+                    setMines(count);
+                    unlockSound();
+                    playSound("tick");
+                  }}
                   aria-pressed={mines === count}
-                  disabled={disabled || playing || pending}
+                  disabled={playing || pending}
                   className={cn(
                     "tap rounded-[6px] border text-small transition-colors",
                     mines === count

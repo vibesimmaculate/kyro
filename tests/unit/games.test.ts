@@ -21,6 +21,10 @@ import {
   playCoinFlip,
   playDice,
   plinkoPath,
+  TOWER_FLOORS,
+  TOWER_RULES,
+  towerBoard,
+  towerMultiplier,
 } from "@/lib/games";
 
 const SERVER = "a".repeat(64);
@@ -273,5 +277,73 @@ describe("plinko", () => {
 
     // The centre bucket's true probability is C(12,6)/4096 ≈ 0.2256.
     expect(middle / rounds).toBeCloseTo(0.2256, 2);
+  });
+});
+
+describe("tower", () => {
+  it("returns 99% at every height, on every difficulty", () => {
+    for (const difficulty of ["easy", "medium", "hard", "brutal"] as const) {
+      const rules = TOWER_RULES[difficulty];
+      for (let floors = 1; floors <= TOWER_FLOORS; floors += 1) {
+        // Surviving n floors is (safe/doors)^n, so expected return is that
+        // times the multiplier. It must land on the stated edge every time.
+        const survival = Math.pow(rules.safe / rules.doors, floors);
+        const multiplier = towerMultiplier(difficulty, floors) / MULTIPLIER_SCALE;
+        expect(survival * multiplier, `${difficulty} at ${floors}`).toBeCloseTo(
+          EXPECTED_RETURN,
+          3,
+        );
+      }
+    }
+  });
+
+  it("pays more the higher you go", () => {
+    let previous = 0;
+    for (let floors = 1; floors <= TOWER_FLOORS; floors += 1) {
+      const multiplier = towerMultiplier("hard", floors);
+      expect(multiplier).toBeGreaterThan(previous);
+      previous = multiplier;
+    }
+    // Eight floors of coin-flips is a big number by construction.
+    expect(towerMultiplier("hard", TOWER_FLOORS) / MULTIPLIER_SCALE).toBeGreaterThan(200);
+  });
+
+  it("traps exactly the right number of doors on every floor", () => {
+    for (const difficulty of ["easy", "medium", "hard", "brutal"] as const) {
+      const rules = TOWER_RULES[difficulty];
+      const board = towerBoard(difficulty, SERVER, CLIENT, 3);
+      expect(board.traps).toHaveLength(TOWER_FLOORS);
+      for (const floor of board.traps) {
+        expect(floor).toHaveLength(rules.doors - rules.safe);
+        expect(new Set(floor).size).toBe(floor.length);
+        for (const door of floor) {
+          expect(door).toBeGreaterThanOrEqual(0);
+          expect(door).toBeLessThan(rules.doors);
+        }
+      }
+    }
+  });
+
+  it("builds the same tower from the same seeds", () => {
+    expect(towerBoard("medium", SERVER, CLIENT, 9)).toEqual(
+      towerBoard("medium", SERVER, CLIENT, 9),
+    );
+    expect(towerBoard("medium", SERVER, CLIENT, 9)).not.toEqual(
+      towerBoard("medium", SERVER, CLIENT, 10),
+    );
+  });
+
+  it("spreads traps evenly across the doors", () => {
+    // A tower that always trapped door 1 would be trivially beatable.
+    const counts = new Array(3).fill(0) as number[];
+    for (let nonce = 0; nonce < 4_000; nonce += 1) {
+      for (const floor of towerBoard("medium", SERVER, CLIENT, nonce).traps) {
+        for (const door of floor) counts[door] = (counts[door] ?? 0) + 1;
+      }
+    }
+    const total = counts.reduce((a, b) => a + b, 0);
+    for (const count of counts) {
+      expect(count / total).toBeCloseTo(1 / 3, 2);
+    }
   });
 });

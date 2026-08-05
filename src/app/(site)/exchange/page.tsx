@@ -9,6 +9,7 @@ import { requestNow } from "@/server/clock";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/exchange" },
   title: "Start an exchange",
   description: "Price your exchange, see the 4% fee in full, and choose a counter.",
 };

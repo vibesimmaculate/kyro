@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Wordmark } from "@/components/brand/Wordmark";
 import { GamesNav } from "@/components/games/GamesNav";
+import { SoundToggle } from "@/components/games/SoundToggle";
 import { licence } from "@/server/env";
 
 /**
@@ -16,12 +17,13 @@ export default function GamesLayout({ children }: { readonly children: React.Rea
   return (
     <div className="night flex min-h-dvh flex-col">
       <header className="border-b border-night-rule">
-        <div className="shell flex h-14 items-center gap-5 md:h-[4.25rem]">
-          <Link href="/games" className="-m-2 flex items-center rounded-[4px] p-2">
+        <div className="shell flex h-14 items-center gap-3 md:h-[4.25rem] md:gap-5">
+          <Link href="/games" className="-m-2 flex flex-none items-center rounded-[4px] p-2">
             <Wordmark size="sm" tone="night" className="md:text-[1.1875rem]" />
-            <span className="label-mono ms-2.5 text-night-muted">Games</span>
+            <span className="label-mono ms-2.5 hidden text-night-muted sm:inline">Games</span>
           </Link>
           <GamesNav />
+          <SoundToggle className="flex-none" />
         </div>
       </header>
 

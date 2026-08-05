@@ -15,6 +15,7 @@ import { requestNow } from "@/server/clock";
 export const revalidate = 15;
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/fees" },
   title: "Fees",
   description:
     "One fee: 4% of the cash side of the exchange. Worked through with real numbers, plus the network fee shown separately.",

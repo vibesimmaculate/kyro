@@ -21,6 +21,8 @@ export interface GameShellProps {
   readonly clientSeed?: string;
   readonly nonce?: number;
   readonly gate?: { readonly reason: GateReason; readonly until?: string };
+  /** Sits between the rules and the board — the demo notice, usually. */
+  readonly notice?: ReactNode;
 }
 
 export function GameShell({
@@ -30,6 +32,7 @@ export function GameShell({
   clientSeed,
   nonce,
   gate,
+  notice,
 }: GameShellProps) {
   return (
     <div className="shell py-8 md:py-12">
@@ -57,7 +60,10 @@ export function GameShell({
           <GameExplainer meta={meta} />
         </>
       ) : (
-        <div className="mt-8">{children}</div>
+        <>
+          {notice}
+          <div className="mt-8">{children}</div>
+        </>
       )}
 
       {serverSeedHash && clientSeed !== undefined && nonce !== undefined ? (
@@ -75,6 +81,11 @@ export function GameShell({
 /** What the game is and what it pays — readable without an account. */
 function GameExplainer({ meta }: { readonly meta: GameMeta }) {
   const odds: Record<GameMeta["id"], readonly [string, string][]> = {
+    tower: [
+      ["Floors", "8, one trapped door on each"],
+      ["Doors per floor", "2 to 4, depending on difficulty"],
+      ["Pays", "More with every floor — take it whenever you want"],
+    ],
     "coin-flip": [
       ["Chance of winning", "50%"],
       ["Pays", "1.98× your stake"],

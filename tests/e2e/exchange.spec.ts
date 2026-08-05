@@ -137,16 +137,35 @@ test.describe("responsive", () => {
     test(`never scrolls sideways at ${width}px`, async ({ page }) => {
       await page.setViewportSize({ width, height: 900 });
 
-      for (const route of ["/", "/exchange", "/locations", "/fees", "/help", "/track", "/games"]) {
+      const routes = [
+        "/",
+        "/exchange",
+        "/locations",
+        "/fees",
+        "/help",
+        "/track",
+        "/games",
+        "/games/tower",
+        "/games/mines",
+      ];
+
+      for (const route of routes) {
         await page.goto(route);
-        const overflow = await page.evaluate(() => ({
-          scroll: document.documentElement.scrollWidth,
-          client: document.documentElement.clientWidth,
-        }));
-        expect(
-          overflow.scroll,
-          `${route} at ${width}px scrolls sideways`,
-        ).toBeLessThanOrEqual(overflow.client + 1);
+
+        // Asserts what a person actually experiences: try to drag the page
+        // sideways and check it does not move. Comparing scrollWidth to
+        // clientWidth reports a false positive whenever the page legitimately
+        // contains a scrollable strip, because `overflow-x: clip` still
+        // reports the pre-clip extent.
+        const moved = await page.evaluate(() => {
+          const before = window.scrollX;
+          window.scrollTo(9999, window.scrollY);
+          const after = window.scrollX;
+          window.scrollTo(before, window.scrollY);
+          return after;
+        });
+
+        expect(moved, `${route} at ${width}px scrolls sideways`).toBe(0);
       }
     });
   }

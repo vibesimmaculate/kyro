@@ -8,6 +8,7 @@ import { REQUIRED_CONFIRMATIONS, TYPICAL_CONFIRMATION_MINUTES } from "@/lib/rate
 import { NETWORKS, NETWORK_IDS } from "@/lib/money/currencies";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/how-it-works" },
   title: "How it works",
   description:
     "Create your exchange, choose a location, pay or collect your cash. Three steps and what happens at each one.",

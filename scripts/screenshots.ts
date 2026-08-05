@@ -45,6 +45,7 @@ const ROUTES = [
   "/help",
   "/track",
   "/games",
+  "/games/tower",
   "/games/coin-flip",
   "/games/fairness",
   "/sign-in",
@@ -95,22 +96,47 @@ async function main() {
       }
       await settle(page);
 
-      // The single most common responsive defect, checked on every capture.
+      /*
+        The single most common responsive defect, checked on every capture.
+
+        This tries to scroll the page sideways rather than comparing
+        `scrollWidth` to `clientWidth`. With `overflow-x: clip` on the body,
+        `scrollWidth` still reports the pre-clip extent, so a deliberately
+        scrollable strip inside the page — the games nav, a wide table — reads
+        as a whole-page overflow when nothing actually moves. What matters to
+        someone holding a phone is whether the page shifts under their thumb.
+      */
       const overflow = await page.evaluate(() => {
         const doc = document.documentElement;
+        const before = window.scrollX;
+        window.scrollTo(9999, window.scrollY);
+        const moved = window.scrollX;
+        window.scrollTo(before, window.scrollY);
+
         return {
+          moved,
           scrollWidth: doc.scrollWidth,
           clientWidth: doc.clientWidth,
           offenders: [...document.querySelectorAll<HTMLElement>("body *")]
-            .filter((el) => el.getBoundingClientRect().right > doc.clientWidth + 1)
+            .filter((el) => {
+              if (el.getBoundingClientRect().right <= doc.clientWidth + 1) return false;
+              // Ignore anything already inside a scroll or clip container.
+              let parent = el.parentElement;
+              while (parent) {
+                const overflowX = getComputedStyle(parent).overflowX;
+                if (overflowX !== "visible") return false;
+                parent = parent.parentElement;
+              }
+              return true;
+            })
             .slice(0, 5)
             .map((el) => `${el.tagName.toLowerCase()}.${el.className?.toString().slice(0, 60)}`),
         };
       });
 
-      if (overflow.scrollWidth > overflow.clientWidth + 1) {
+      if (overflow.moved > 0) {
         problems.push(
-          `${route} @${viewport.name} → horizontal overflow ${overflow.scrollWidth}>${overflow.clientWidth} :: ${overflow.offenders.join(" | ")}`,
+          `${route} @${viewport.name} → page scrolls sideways by ${overflow.moved}px :: ${overflow.offenders.join(" | ")}`,
         );
       }
 

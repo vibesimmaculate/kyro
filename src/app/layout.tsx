@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { SITE } from "@/lib/seo/site";
 import { IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
 import "./globals.css";
 
@@ -17,21 +18,35 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://kyro.example"),
+  metadataBase: new URL(SITE.url),
   title: {
-    default: "KYRO — Cash to crypto. Crypto to cash.",
-    template: "%s — KYRO",
+    default: `${SITE.name} — ${SITE.tagline}`,
+    template: `%s — ${SITE.name}`,
   },
-  description:
-    "Exchange cash for crypto, or crypto for cash, at a counter near you. One clear 4% fee, shown before you commit.",
+  description: SITE.description,
+  applicationName: SITE.name,
+  // Every page declares its own canonical relative to this, so a URL reached
+  // with tracking parameters still resolves to one indexable address.
+  alternates: { canonical: "/" },
   openGraph: {
     type: "website",
-    siteName: "KYRO",
-    title: "KYRO — Cash to crypto. Crypto to cash.",
-    description:
-      "Exchange cash for crypto, or crypto for cash, at a counter near you. One clear 4% fee, shown before you commit.",
+    siteName: SITE.name,
+    locale: SITE.locale,
+    url: SITE.url,
+    title: `${SITE.name} — ${SITE.tagline}`,
+    description: SITE.description,
   },
-  robots: { index: true, follow: true },
+  twitter: {
+    card: "summary_large_image",
+    title: `${SITE.name} — ${SITE.tagline}`,
+    description: SITE.description,
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1 },
+  },
+  category: "finance",
 };
 
 export const viewport: Viewport = {

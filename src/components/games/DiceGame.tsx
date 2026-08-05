@@ -10,6 +10,8 @@ import { cn } from "@/lib/cn";
 import { DICE_MAX_CHANCE, DICE_MIN_CHANCE, diceMultiplier, formatMultiplier } from "@/lib/games";
 import type { CryptoCode } from "@/lib/money/currencies";
 import { playDiceRound, type RoundResult } from "@/server/games/play";
+import { demoDice } from "@/lib/games/demo";
+import { feedback, play as playSound, unlockSound } from "@/lib/sound";
 
 /**
  * Dice.
@@ -21,11 +23,11 @@ import { playDiceRound, type RoundResult } from "@/server/games/play";
 export function DiceGame({
   asset,
   balance: initialBalance,
-  disabled,
+  demo,
 }: {
   readonly asset: CryptoCode;
   readonly balance: bigint;
-  readonly disabled?: boolean;
+  readonly demo?: boolean;
 }) {
   const [balance, setBalance] = useState(initialBalance);
   const [stake, setStake] = useState<bigint>(() => initialBalance / 20n);
@@ -37,16 +39,34 @@ export function DiceGame({
   const multiplier = useMemo(() => diceMultiplier(chance), [chance]);
   const target = direction === "under" ? chance : 100 - chance;
 
-  function play() {
+  function announce(outcome: RoundResult) {
+    setResult(outcome);
+    if (outcome.ok && outcome.balance) setBalance(BigInt(outcome.balance));
+    if (!outcome.ok) return;
+    if (BigInt(outcome.payout ?? "0") > 0n) {
+      // Longer odds sound bigger, because they are.
+      feedback("win", Math.min(1, (multiplier - 10_000) / 100_000), [10, 30, 10]);
+    } else {
+      feedback("lose", 0, 18);
+    }
+  }
+
+  function rollDice() {
+    unlockSound();
+    playSound("tick");
+
+    if (demo) {
+      announce(demoDice(stake, chance, direction));
+      return;
+    }
+
     const form = new FormData();
     form.set("asset", asset);
     form.set("stake", String(stake));
     form.set("chance", String(chance));
     form.set("direction", direction);
     start(async () => {
-      const outcome = await playDiceRound(form);
-      setResult(outcome);
-      if (outcome.ok && outcome.balance) setBalance(BigInt(outcome.balance));
+      announce(await playDiceRound(form));
     });
   }
 
@@ -113,14 +133,15 @@ export function DiceGame({
           stake={stake}
           onStakeChange={setStake}
           multiplier={multiplier}
-          disabled={disabled || pending}
+          disabled={pending}
+          demo={demo}
           action={
             <Button
               tone="night"
               size="lg"
               full
-              onClick={play}
-              disabled={disabled || pending || stake <= 0n || stake > balance}
+              onClick={rollDice}
+              disabled={pending || stake <= 0n || stake > balance}
             >
               {pending ? "Rolling…" : "Roll"}
             </Button>
@@ -132,9 +153,13 @@ export function DiceGame({
                 <button
                   key={option}
                   type="button"
-                  onClick={() => setDirection(option)}
+                  onClick={() => {
+                    setDirection(option);
+                    unlockSound();
+                    playSound("select");
+                  }}
                   aria-pressed={direction === option}
-                  disabled={disabled || pending}
+                  disabled={pending}
                   className={cn(
                     "tap rounded-[8px] border px-3 text-[0.9375rem] capitalize transition-colors",
                     direction === option
@@ -158,11 +183,14 @@ export function DiceGame({
               <Slider.Root
                 id="chance"
                 value={[chance]}
-                onValueChange={([next]) => setChance(next ?? 50)}
+                onValueChange={([next]) => {
+                  setChance(next ?? 50);
+                  playSound("tick");
+                }}
                 min={DICE_MIN_CHANCE}
                 max={DICE_MAX_CHANCE}
                 step={1}
-                disabled={disabled || pending}
+                disabled={pending}
                 className="relative mt-3 flex h-6 w-full touch-none items-center select-none"
               >
                 <Slider.Track className="relative h-1.5 w-full grow rounded-full bg-night-sunk">

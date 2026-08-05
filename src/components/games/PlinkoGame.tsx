@@ -10,6 +10,8 @@ import { crypto as cryptoAmount } from "@/lib/money/amounts";
 import { formatCrypto } from "@/lib/money/format";
 import type { CryptoCode } from "@/lib/money/currencies";
 import { playPlinkoRound, type RoundResult } from "@/server/games/play";
+import { demoPlinko } from "@/lib/games/demo";
+import { feedback, play as playSound, unlockSound } from "@/lib/sound";
 
 /**
  * Plinko.
@@ -26,11 +28,11 @@ const STEP_MS = 110;
 export function PlinkoGame({
   asset,
   balance: initialBalance,
-  disabled,
+  demo,
 }: {
   readonly asset: CryptoCode;
   readonly balance: bigint;
-  readonly disabled?: boolean;
+  readonly demo?: boolean;
 }) {
   const [balance, setBalance] = useState(initialBalance);
   const [stake, setStake] = useState<bigint>(() => initialBalance / 20n);
@@ -45,33 +47,62 @@ export function PlinkoGame({
   const bucket = result?.ok ? (result.outcome?.bucket as number | undefined) : undefined;
   const dropping = step < PLINKO_ROWS;
 
-  function play() {
+  function land(outcome: RoundResult) {
+    if (!outcome.ok) return;
+    const payout = BigInt(outcome.payout ?? "0");
+    const multiplier = outcome.multiplier ?? 0;
+    if (payout > 0n && multiplier > 10_000) {
+      feedback(
+        multiplier >= 100_000 ? "bigWin" : "win",
+        Math.min(1, multiplier / 200_000),
+        [10, 30, 10],
+      );
+    } else {
+      feedback("lose", 0, 14);
+    }
+  }
+
+  function drop(outcome: RoundResult) {
+    setResult(outcome);
+    if (outcome.ok && outcome.balance) setBalance(BigInt(outcome.balance));
+    if (!outcome.ok) return;
+
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduced) {
+      setStep(PLINKO_ROWS);
+      land(outcome);
+      return;
+    }
+
+    setStep(0);
+    const advance = (row: number) => {
+      if (row >= PLINKO_ROWS) {
+        setStep(PLINKO_ROWS);
+        land(outcome);
+        return;
+      }
+      setStep(row);
+      // One tap per peg, pitched a little lower each row as the ball falls.
+      playSound("bounce", row / PLINKO_ROWS);
+      timer.current = window.setTimeout(() => advance(row + 1), STEP_MS);
+    };
+    advance(0);
+  }
+
+  function dropBall() {
+    unlockSound();
+    playSound("drop");
+
+    if (demo) {
+      drop(demoPlinko(stake));
+      return;
+    }
+
     const form = new FormData();
     form.set("asset", asset);
     form.set("stake", String(stake));
-
     start(async () => {
-      const outcome = await playPlinkoRound(form);
-      setResult(outcome);
-      if (outcome.ok && outcome.balance) setBalance(BigInt(outcome.balance));
-      if (!outcome.ok) return;
-
-      const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      if (reduced) {
-        setStep(PLINKO_ROWS);
-        return;
-      }
-
-      setStep(0);
-      const advance = (row: number) => {
-        if (row >= PLINKO_ROWS) {
-          setStep(PLINKO_ROWS);
-          return;
-        }
-        setStep(row);
-        timer.current = window.setTimeout(() => advance(row + 1), STEP_MS);
-      };
-      advance(0);
+      drop(await playPlinkoRound(form));
     });
   }
 
@@ -175,14 +206,15 @@ export function PlinkoGame({
           balance={balance}
           stake={stake}
           onStakeChange={setStake}
-          disabled={disabled || pending || dropping}
+          disabled={pending || dropping}
+          demo={demo}
           action={
             <Button
               tone="night"
               size="lg"
               full
-              onClick={play}
-              disabled={disabled || pending || dropping || stake <= 0n || stake > balance}
+              onClick={dropBall}
+              disabled={pending || dropping || stake <= 0n || stake > balance}
             >
               {pending || dropping ? "Falling…" : "Drop"}
             </Button>

@@ -14,8 +14,14 @@ export function GamesNav() {
   const pathname = usePathname();
 
   return (
-    <nav aria-label="Games" className="-mx-2 min-w-0 flex-1 overflow-x-auto">
-      <ul className="flex items-center gap-0.5 px-2">
+    <nav
+      aria-label="Games"
+      // `basis-0 grow` with `min-w-0` lets this shrink to nothing before the
+      // header overflows. A negative margin here would add width back and
+      // push the page sideways at 390px, which is exactly what it did.
+      className="min-w-0 shrink grow basis-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+    >
+      <ul className="flex items-center gap-0.5">
         {GAMES.map((id) => {
           const active = pathname === `/games/${id}`;
           return (
@@ -36,7 +42,7 @@ export function GamesNav() {
           );
         })}
 
-        <li className="ms-auto ps-4">
+        <li className="ps-3">
           <Link
             href="/games/wallet"
             className={cn(

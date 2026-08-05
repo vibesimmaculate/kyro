@@ -10,6 +10,8 @@ import { crypto as cryptoAmount } from "@/lib/money/amounts";
 import { formatCrypto } from "@/lib/money/format";
 import type { CryptoCode } from "@/lib/money/currencies";
 import { playCrashRound, type RoundResult } from "@/server/games/play";
+import { demoCrash } from "@/lib/games/demo";
+import { feedback, play as playSound, unlockSound } from "@/lib/sound";
 
 /**
  * Crash.
@@ -28,11 +30,11 @@ const CLIMB_MS = 2_400;
 export function CrashGame({
   asset,
   balance: initialBalance,
-  disabled,
+  demo,
 }: {
   readonly asset: CryptoCode;
   readonly balance: bigint;
-  readonly disabled?: boolean;
+  readonly demo?: boolean;
 }) {
   const [balance, setBalance] = useState(initialBalance);
   const [stake, setStake] = useState<bigint>(() => initialBalance / 20n);
@@ -51,14 +53,16 @@ export function CrashGame({
   const survived = result?.ok ? result.outcome?.survived === true : false;
   const targetScaled = Math.round(Number(target || "1") * MULTIPLIER_SCALE);
 
-  function animateTo(finalValue: number) {
+  function animateTo(finalValue: number, onSettled: () => void) {
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduced) {
       setDisplayed(finalValue);
       setRunning(false);
+      onSettled();
       return;
     }
 
+    let lastTone = 0;
     const startedAt = performance.now();
     setRunning(true);
 
@@ -70,34 +74,61 @@ export function CrashGame({
       const eased = 1 - Math.pow(1 - progress, 2.4);
       setDisplayed(MULTIPLIER_SCALE + (finalValue - MULTIPLIER_SCALE) * eased);
 
+      // A rising tone roughly every 90ms while the curve climbs — enough to
+      // feel like acceleration without becoming a siren.
+      if (elapsed - lastTone > 90) {
+        lastTone = elapsed;
+        playSound("climb", progress);
+      }
+
       if (progress < 1) {
         frame.current = requestAnimationFrame(step);
       } else {
         setDisplayed(finalValue);
         setRunning(false);
+        onSettled();
       }
     };
 
     frame.current = requestAnimationFrame(step);
   }
 
-  function play() {
+  function settleAudio(outcome: RoundResult) {
+    if (!outcome.ok) return;
+    if (outcome.outcome?.survived) {
+      const multiple = targetScaled / MULTIPLIER_SCALE;
+      feedback(multiple >= 5 ? "bigWin" : "win", Math.min(1, multiple / 10), [10, 30, 10]);
+    } else {
+      feedback("break", 0, [40, 30, 60]);
+    }
+  }
+
+  function run(outcome: RoundResult) {
+    setResult(outcome);
+    if (outcome.ok && outcome.balance) setBalance(BigInt(outcome.balance));
+    if (!outcome.ok) return;
+    const point = outcome.outcome?.crashPoint as number;
+    const stopAt = outcome.outcome?.survived ? targetScaled : point;
+    animateTo(stopAt, () => settleAudio(outcome));
+  }
+
+  function placeBet() {
+    unlockSound();
+    playSound("tick");
+    setResult(undefined);
+    setDisplayed(MULTIPLIER_SCALE);
+
+    if (demo) {
+      run(demoCrash(stake, targetScaled));
+      return;
+    }
+
     const form = new FormData();
     form.set("asset", asset);
     form.set("stake", String(stake));
     form.set("target", target);
-    setResult(undefined);
-    setDisplayed(MULTIPLIER_SCALE);
-
     start(async () => {
-      const outcome = await playCrashRound(form);
-      setResult(outcome);
-      if (outcome.ok && outcome.balance) setBalance(BigInt(outcome.balance));
-      if (outcome.ok) {
-        const point = outcome.outcome?.crashPoint as number;
-        const stopAt = outcome.outcome?.survived ? targetScaled : point;
-        animateTo(stopAt);
-      }
+      run(await playCrashRound(form));
     });
   }
 
@@ -209,14 +240,15 @@ export function CrashGame({
           stake={stake}
           onStakeChange={setStake}
           multiplier={targetScaled}
-          disabled={disabled || pending || running}
+          disabled={pending || running}
+          demo={demo}
           action={
             <Button
               tone="night"
               size="lg"
               full
-              onClick={play}
-              disabled={disabled || pending || running || stake <= 0n || stake > balance}
+              onClick={placeBet}
+              disabled={pending || running || stake <= 0n || stake > balance}
             >
               {pending || running ? "Running…" : "Place bet"}
             </Button>
@@ -241,7 +273,7 @@ export function CrashGame({
                   setTarget(safe.toFixed(2));
                 }}
                 inputMode="decimal"
-                disabled={disabled || pending || running}
+                disabled={pending || running}
                 className={cn(
                   "figure-num min-h-11 min-w-0 flex-1 rounded-[8px] border border-night-rule-strong",
                   "bg-night-sunk px-3 text-[1.0625rem] outline-none transition-colors focus:border-night-blue",
@@ -257,8 +289,12 @@ export function CrashGame({
                 <button
                   key={preset}
                   type="button"
-                  onClick={() => setTarget(preset)}
-                  disabled={disabled || pending || running}
+                  onClick={() => {
+                    setTarget(preset);
+                    unlockSound();
+                    playSound("select");
+                  }}
+                  disabled={pending || running}
                   className={cn(
                     "tap rounded-[6px] border text-small transition-colors",
                     target === preset

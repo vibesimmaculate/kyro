@@ -17,6 +17,8 @@ import { CRYPTO, FIAT } from "@/lib/money/currencies";
 import { formatMoney } from "@/lib/money/format";
 import { parseMoney } from "@/lib/money/amounts";
 import { requestDate } from "@/server/clock";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { breadcrumbSchema, graph, locationSchema } from "@/lib/seo/structured-data";
 
 export const revalidate = 60;
 
@@ -33,6 +35,7 @@ export async function generateMetadata({
   const location = sampleLocationProvider.bySlug(slug);
   if (!location) return { title: "Location not found" };
   return {
+    alternates: { canonical: `/locations/${location.slug}` },
     title: `${location.city} — ${location.branch}`,
     description: `KYRO counter at ${location.street}, ${location.city}. Opening hours, supported exchange directions and cash limits.`,
   };
@@ -66,6 +69,17 @@ export default async function LocationPage({
 
   return (
     <div className="shell py-10 md:py-14">
+      <JsonLd
+        data={graph(
+          locationSchema(location),
+          breadcrumbSchema([
+            { name: "Home", path: "/" },
+            { name: "Locations", path: "/locations" },
+            { name: `${location.city} — ${location.branch}`, path: `/locations/${location.slug}` },
+          ]),
+        )}
+      />
+
       <nav aria-label="Breadcrumb" className="mb-8">
         <ol className="flex flex-wrap items-center gap-2 text-small text-ink-muted">
           <li>

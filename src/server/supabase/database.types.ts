@@ -901,7 +901,7 @@ export type Database = {
         | "ignored"
       kyro_direction: "cash-to-crypto" | "crypto-to-cash"
       kyro_fiat: "EUR" | "BAM" | "RSD" | "MKD" | "ALL"
-      kyro_game: "coin-flip" | "dice" | "mines" | "crash" | "plinko"
+      kyro_game: "coin-flip" | "dice" | "mines" | "crash" | "plinko" | "tower"
       kyro_kyc_status: "none" | "pending" | "verified" | "rejected"
       kyro_order_status:
         | "created"
@@ -1070,7 +1070,7 @@ export const Constants = {
       ],
       kyro_direction: ["cash-to-crypto", "crypto-to-cash"],
       kyro_fiat: ["EUR", "BAM", "RSD", "MKD", "ALL"],
-      kyro_game: ["coin-flip", "dice", "mines", "crash", "plinko"],
+      kyro_game: ["coin-flip", "dice", "mines", "crash", "plinko", "tower"],
       kyro_kyc_status: ["none", "pending", "verified", "rejected"],
       kyro_order_status: [
         "created",

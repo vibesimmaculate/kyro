@@ -12,7 +12,7 @@
 
 import { floatStream, seededShuffle } from "@/lib/fair";
 
-export const GAMES = ["coin-flip", "dice", "mines", "crash", "plinko"] as const;
+export const GAMES = ["tower", "coin-flip", "dice", "mines", "crash", "plinko"] as const;
 export type GameId = (typeof GAMES)[number];
 
 /** One percent. Held in basis points so it cannot drift. */
@@ -230,6 +230,90 @@ export function plinkoMultiplier(bucket: number): number {
   return PLINKO_MULTIPLIERS[bucket] ?? 0;
 }
 
+
+/* ── Tower ─────────────────────────────────────────────────────────────── */
+
+/**
+ * Tower.
+ *
+ * Eight floors. On each one you pick a door; one of them is a trap. Survive and
+ * you climb, and the multiplier climbs with you. Stop whenever you like.
+ *
+ * It is the simplest possible shape for a gambling game — one decision,
+ * repeated, with a rising cost of being wrong — and that is exactly why it
+ * works: there is nothing to learn, and the only real choice is when to stop.
+ * The difficulty setting changes the number of doors, which changes both the
+ * risk and the pace of the climb.
+ */
+
+export const TOWER_FLOORS = 8;
+
+export type TowerDifficulty = "easy" | "medium" | "hard" | "brutal";
+
+export interface TowerRules {
+  /** Doors on each floor. */
+  readonly doors: number;
+  /** How many of them are safe. */
+  readonly safe: number;
+  readonly label: string;
+}
+
+export const TOWER_RULES: Record<TowerDifficulty, TowerRules> = {
+  easy: { doors: 4, safe: 3, label: "3 of 4 safe" },
+  medium: { doors: 3, safe: 2, label: "2 of 3 safe" },
+  hard: { doors: 2, safe: 1, label: "1 of 2 safe" },
+  brutal: { doors: 4, safe: 1, label: "1 of 4 safe" },
+};
+
+/**
+ * Multiplier after clearing `floors` floors.
+ *
+ * Each floor is an independent (safe / doors) chance, so the fair return is the
+ * reciprocal of their product. The edge is applied once at the top rather than
+ * compounding per floor — the same treatment Mines gets, and the reason a long
+ * climb is not quietly punished twice.
+ */
+export function towerMultiplier(difficulty: TowerDifficulty, floors: number): number {
+  if (floors <= 0) return MULTIPLIER_SCALE;
+  const rules = TOWER_RULES[difficulty];
+  if (floors > TOWER_FLOORS) return 0;
+
+  const fair = Math.pow(rules.doors / rules.safe, floors);
+  return withEdge(fair);
+}
+
+export interface TowerBoard {
+  /** For each floor, the index of the door that ends the climb. */
+  readonly traps: readonly number[][];
+}
+
+/**
+ * The whole tower, fixed by the seeds before the first door is touched.
+ *
+ * Every floor's trap positions are derived up front, so the board a player
+ * walks through is the one the commitment hash already promised — the server
+ * cannot decide where the trap goes after seeing which door was picked.
+ */
+export function towerBoard(
+  difficulty: TowerDifficulty,
+  serverSeed: string,
+  clientSeed: string,
+  nonce: number,
+): TowerBoard {
+  const rules = TOWER_RULES[difficulty];
+  const trapsPerFloor = rules.doors - rules.safe;
+  const floats = floatStream(serverSeed, clientSeed, nonce, TOWER_FLOORS * rules.doors);
+
+  const traps: number[][] = [];
+  for (let floor = 0; floor < TOWER_FLOORS; floor += 1) {
+    const doors = Array.from({ length: rules.doors }, (_, i) => i);
+    const slice = floats.slice(floor * rules.doors, (floor + 1) * rules.doors);
+    traps.push(seededShuffle(doors, slice).slice(0, trapsPerFloor).sort((a, b) => a - b));
+  }
+
+  return { traps };
+}
+
 /* ── Description used across the games wing ────────────────────────────── */
 
 export interface GameMeta {
@@ -241,6 +325,13 @@ export interface GameMeta {
 }
 
 export const GAME_META: Record<GameId, GameMeta> = {
+  tower: {
+    id: "tower",
+    name: "Tower",
+    tagline: "Eight floors. One way down.",
+    rule: "Pick a door on each floor. Climb as high as your nerve holds, and take the money whenever you want it.",
+    accent: "blue",
+  },
   "coin-flip": {
     id: "coin-flip",
     name: "Coin Flip",

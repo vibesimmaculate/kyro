@@ -10,6 +10,7 @@ export const dynamic = "force-dynamic";
 const DEMO_EMAIL = "demo@kyro.example";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/track" },
   title: "Track an order",
   description: "Enter your order code to see exactly where your exchange has got to.",
 };

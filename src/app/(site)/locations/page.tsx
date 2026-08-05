@@ -11,10 +11,13 @@ import {
   type CountryCode,
 } from "@/fixtures/locations";
 import { requestDate } from "@/server/clock";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { breadcrumbSchema, graph, locationListSchema } from "@/lib/seo/structured-data";
 
 export const revalidate = 60;
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/locations" },
   title: "Locations",
   description:
     "Every KYRO counter, with opening hours, the directions it handles and how much cash it can pay out.",
@@ -41,6 +44,16 @@ export default async function LocationsPage({
 
   return (
     <>
+      <JsonLd
+        data={graph(
+          locationListSchema(),
+          breadcrumbSchema([
+            { name: "Home", path: "/" },
+            { name: "Locations", path: "/locations" },
+          ]),
+        )}
+      />
+
       <PageHeader
         eyebrow="Locations"
         title="Where to pay, and where to collect."

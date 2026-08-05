@@ -5,8 +5,12 @@ import { PageHeader } from "@/components/site/PageHeader";
 import { Section } from "@/components/site/Section";
 import { ButtonLink } from "@/components/ui/Button";
 import { FAQ_ITEMS } from "@/content/faq";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { breadcrumbSchema, faqSchema, graph } from "@/lib/seo/structured-data";
+import { KEY_FACTS } from "@/lib/seo/site";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/help" },
   title: "Help",
   description:
     "How the 4% fee works, how long an exchange takes, what to bring to the counter, and how to reach a person.",
@@ -15,6 +19,16 @@ export const metadata: Metadata = {
 export default function HelpPage() {
   return (
     <>
+      <JsonLd
+        data={graph(
+          faqSchema(KEY_FACTS),
+          breadcrumbSchema([
+            { name: "Home", path: "/" },
+            { name: "Help", path: "/help" },
+          ]),
+        )}
+      />
+
       <PageHeader
         eyebrow="Help"
         title="Questions people actually ask."

@@ -7,6 +7,8 @@ import { ResultBanner } from "@/components/games/ResultBanner";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import { COIN_FLIP_MULTIPLIER, type CoinSide } from "@/lib/games";
+import { demoCoinFlip } from "@/lib/games/demo";
+import { feedback, play, unlockSound } from "@/lib/sound";
 import type { CryptoCode } from "@/lib/money/currencies";
 import { playCoinFlipRound, type RoundResult } from "@/server/games/play";
 
@@ -19,11 +21,11 @@ import { playCoinFlipRound, type RoundResult } from "@/server/games/play";
 export function CoinFlipGame({
   asset,
   balance: initialBalance,
-  disabled,
+  demo,
 }: {
   readonly asset: CryptoCode;
   readonly balance: bigint;
-  readonly disabled?: boolean;
+  readonly demo?: boolean;
 }) {
   const [balance, setBalance] = useState(initialBalance);
   const [stake, setStake] = useState<bigint>(() => initialBalance / 20n);
@@ -31,15 +33,30 @@ export function CoinFlipGame({
   const [result, setResult] = useState<RoundResult | undefined>();
   const [pending, start] = useTransition();
 
-  function play() {
+  function announce(outcome: RoundResult) {
+    setResult(outcome);
+    if (outcome.ok && outcome.balance) setBalance(BigInt(outcome.balance));
+    if (!outcome.ok) return;
+    // Won or lost, and nothing in between: a losing round is never dressed up.
+    if (BigInt(outcome.payout ?? "0") > 0n) feedback("win", 0.4, [10, 30, 10]);
+    else feedback("lose", 0, 18);
+  }
+
+  function flip() {
+    unlockSound();
+    play("tick");
+
+    if (demo) {
+      announce(demoCoinFlip(stake, pick));
+      return;
+    }
+
     const form = new FormData();
     form.set("asset", asset);
     form.set("stake", String(stake));
     form.set("pick", pick);
     start(async () => {
-      const outcome = await playCoinFlipRound(form);
-      setResult(outcome);
-      if (outcome.ok && outcome.balance) setBalance(BigInt(outcome.balance));
+      announce(await playCoinFlipRound(form));
     });
   }
 
@@ -83,14 +100,15 @@ export function CoinFlipGame({
           stake={stake}
           onStakeChange={setStake}
           multiplier={COIN_FLIP_MULTIPLIER}
-          disabled={disabled || pending}
+          disabled={pending}
+          demo={demo}
           action={
             <Button
               tone="night"
               size="lg"
               full
-              onClick={play}
-              disabled={disabled || pending || stake <= 0n || stake > balance}
+              onClick={flip}
+              disabled={pending || stake <= 0n || stake > balance}
             >
               {pending ? "Flipping…" : "Flip"}
             </Button>
@@ -103,9 +121,13 @@ export function CoinFlipGame({
                 <button
                   key={side}
                   type="button"
-                  onClick={() => setPick(side)}
+                  onClick={() => {
+                    setPick(side);
+                    unlockSound();
+                    play("select");
+                  }}
                   aria-pressed={pick === side}
-                  disabled={disabled || pending}
+                  disabled={pending}
                   className={cn(
                     "tap rounded-[8px] border px-4 text-[0.9375rem] capitalize transition-colors",
                     pick === side

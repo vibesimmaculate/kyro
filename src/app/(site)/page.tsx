@@ -11,6 +11,15 @@ import { ButtonLink } from "@/components/ui/Button";
 import { FAQ_ITEMS } from "@/content/faq";
 import { counterClock, LOCATIONS } from "@/fixtures/locations";
 import { buildQuote } from "@/lib/quote/engine";
+import { JsonLd } from "@/components/seo/JsonLd";
+import {
+  faqSchema,
+  graph,
+  organisationSchema,
+  serviceSchema,
+  supportedAssetsSchema,
+  websiteSchema,
+} from "@/lib/seo/structured-data";
 import { requestNow } from "@/server/clock";
 
 /**
@@ -57,6 +66,16 @@ export default function HomePage() {
 
   return (
     <>
+      <JsonLd
+        data={graph(
+          organisationSchema(),
+          websiteSchema(),
+          serviceSchema(),
+          supportedAssetsSchema(),
+          faqSchema(),
+        )}
+      />
+
       {/* ── Hero: the calculator is the hero ──────────────────────────── */}
       {/* Splits at lg, not md: below 1024 the ticket needs the full column or
           its figures start fighting the receipt labels for room. */}
