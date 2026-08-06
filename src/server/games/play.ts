@@ -16,6 +16,8 @@ import {
   plinkoPath,
   PLINKO_RISKS,
   PLINKO_ROW_OPTIONS,
+  spinWheel,
+  WHEEL_RISKS,
   type GameId,
 } from "@/lib/games";
 import { placeBet, payoutRound } from "@/server/ledger";
@@ -101,7 +103,7 @@ type JsonRecord = Record<string, unknown>;
 const asJson = (value: JsonRecord) => value as unknown as never;
 
 interface PlayInput {
-  readonly game: GameId;
+  readonly game: Exclude<GameId, "crash">;
   readonly asset: CryptoCode;
   readonly stake: bigint;
   readonly params: JsonRecord;
@@ -354,6 +356,37 @@ export async function playMinesRound(formData: FormData): Promise<RoundResult> {
           hit: hit ?? null,
         },
       };
+    },
+  );
+}
+
+
+const WheelSchema = StakeSchema.extend({
+  risk: z.enum(WHEEL_RISKS),
+});
+
+/**
+ * The wheel, settled in one shot.
+ *
+ * Unlike crash there is nothing to decide once it is turning, so there is
+ * nothing to gain from holding the answer back — the client is handed the
+ * segment and spends three seconds arriving at it.
+ */
+export async function playWheelRound(formData: FormData): Promise<RoundResult> {
+  const parsed = WheelSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { ok: false, error: "Check your stake." };
+  const { risk } = parsed.data;
+
+  return runRound(
+    {
+      game: "wheel",
+      asset: parsed.data.asset,
+      stake: BigInt(parsed.data.stake),
+      params: { risk },
+    },
+    (serverSeed, clientSeed, nonce) => {
+      const { segment, multiplier } = spinWheel(serverSeed, clientSeed, nonce, risk);
+      return { multiplier, outcome: { segment, risk } };
     },
   );
 }

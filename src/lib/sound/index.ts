@@ -31,6 +31,7 @@ import {
   sub,
   tone,
 } from "./engine";
+import { nowMs } from "@/lib/clock";
 import { intensity } from "./intensity";
 
 export type SoundName =
@@ -93,7 +94,7 @@ export function setSoundEnabled(next: boolean): void {
 
   const chain = audioChain();
   if (chain) {
-    const target = next ? 0.9 : 0;
+    const target = next ? 0.62 : 0;
     chain.master.gain.cancelScheduledValues(chain.ctx.currentTime);
     chain.master.gain.setValueAtTime(target, chain.ctx.currentTime);
     if (!next) silence();
@@ -111,13 +112,54 @@ export function unlockSound(): void {
 
   try {
     const ctx = new Ctor();
-    buildChain(ctx, soundEnabled() ? 0.9 : 0);
+    buildChain(ctx, soundEnabled() ? 0.62 : 0);
     enabled = soundEnabled();
     unlocked = true;
     void ctx.resume();
   } catch {
     // No audio available on this device. Every call below becomes a no-op.
   }
+}
+
+/* ── Variation, and the reason for it ───────────────────────────────────── */
+
+/**
+ * Every repeated sound gets a different pitch, length and level.
+ *
+ * This is the single biggest thing that was wrong. A twelve-row Plinko board
+ * with five balls fires roughly eighty pin strikes in three seconds, and every
+ * one of them was the same click at the same pitch — which is precisely the
+ * recipe for listener fatigue that the game-audio literature warns about. The
+ * standard answer is a pool of variations plus per-trigger jitter, and that is
+ * what this is: a cheap deterministic sequence driving small offsets in pitch,
+ * gain and decay, so no two hits are ever quite the same.
+ *
+ * Deterministic rather than random, for the same reason as everything else
+ * here: `Math.random` is banned repo-wide so nothing near an outcome reaches
+ * for it out of habit.
+ */
+let variationState = 0x2545f491;
+
+function vary(): number {
+  variationState = (variationState * 1664525 + 1013904223) >>> 0;
+  return variationState / 0x80000000 - 1;
+}
+
+/**
+ * How much to duck a sound that keeps firing.
+ *
+ * Rapid repeats of the same sound fall away rather than piling up. Ten pins in
+ * a row would otherwise be ten hits at full level stacked into a buzz; this
+ * makes a burst read as a burst — the first is loud, the rest fill in behind
+ * it — and recovers within about half a second of quiet.
+ */
+const lastPlayed = new Map<SoundName, { at: number; runs: number }>();
+
+function fatigue(name: SoundName, at: number): number {
+  const previous = lastPlayed.get(name);
+  const runs = previous && at - previous.at < 220 ? Math.min(9, previous.runs + 1) : 0;
+  lastPlayed.set(name, { at, runs });
+  return 1 / (1 + runs * 0.28);
 }
 
 /** Adaptive intensity touches the celebrations and nothing else. */
@@ -267,13 +309,13 @@ export function play(name: SoundName, level = 0, pan = 0): void {
   switch (name) {
     case "tick":
       tone({
-        freq: 1350,
-        duration: 0.03,
-        type: "square",
-        gain: 0.05,
+        freq: 900 * (1 + vary() * 0.07),
+        duration: 0.026,
+        type: "triangle",
+        gain: 0.032 * fatigue("tick", nowMs()),
         attack: 0.001,
-        release: 0.02,
-        filter: { freq: 3400 },
+        release: 0.018,
+        filter: { freq: 1900, q: 1.1 },
         pan,
       });
       break;
@@ -502,50 +544,54 @@ export function play(name: SoundName, level = 0, pan = 0): void {
       break;
 
     case "bounce": {
-      // Pitch drifts down with depth, so twelve pins are twelve distinct taps
-      // rather than one sound repeated — and each arrives from where on the
-      // board it actually happened.
+      // A wooden tap, not a glassy click. Pitch falls with depth so the drop
+      // has a direction, each strike is detuned a little so no two are the
+      // same, and a run of them fades rather than stacking.
       const depth = strength;
+      const wobble = vary();
+      const level = fatigue("bounce", nowMs()) * 0.9;
+
       tone({
-        freq: 1620 - depth * 700,
-        duration: 0.05,
+        freq: (860 - depth * 340) * (1 + wobble * 0.09),
+        duration: 0.045 + wobble * 0.008,
         type: "triangle",
-        gain: 0.085,
+        gain: 0.05 * level,
         attack: 0.001,
-        decay: 0.012,
-        sustain: 0.18,
-        release: 0.035,
-        filter: { freq: 7000 - depth * 2600, q: 2.2 },
+        decay: 0.016,
+        sustain: 0.12,
+        release: 0.03,
+        filter: { freq: 2400 - depth * 700, q: 1.4 },
         pan,
-        sends: { reverb: 0.4, delay: 0.08 },
+        sends: { reverb: 0.22 },
       });
       noise({
-        duration: 0.022,
-        gain: 0.045,
+        duration: 0.016,
+        gain: 0.02 * level,
         attack: 0.001,
-        release: 0.018,
-        filter: { freq: 3800 - depth * 1500, q: 1.4 },
+        release: 0.014,
+        filter: { freq: 1500 - depth * 400, q: 1.1 },
         pan,
-        sends: { reverb: 0.25 },
       });
       break;
     }
 
     case "climb":
-      // The continuous rise under Crash. Deliberately thin — it plays many
-      // times a second and must never become a siren.
+      // The rise under Crash. A sawtooth retriggering four times a second is a
+      // siren, which is exactly what it had become — this is a soft sine an
+      // octave lower, quiet, short, and detuned a little each time so a long
+      // round does not settle into a drone.
       tone({
-        freq: 240 + strength * 1400,
-        duration: 0.09,
-        type: "sawtooth",
-        gain: 0.03 + strength * 0.018,
-        attack: 0.004,
-        decay: 0.02,
-        sustain: 0.4,
-        release: 0.05,
-        filter: { freq: 900 + strength * 3600, q: 3.4 },
+        freq: (150 + strength * 620) * (1 + vary() * 0.05),
+        duration: 0.13,
+        type: "sine",
+        gain: 0.022 + strength * 0.012,
+        attack: 0.02,
+        decay: 0.04,
+        sustain: 0.5,
+        release: 0.07,
+        filter: { freq: 1400 + strength * 1200 },
         pan,
-        sends: { reverb: 0.18 },
+        sends: { reverb: 0.22 },
       });
       break;
 

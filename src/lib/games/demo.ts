@@ -31,6 +31,8 @@ import {
   playDice,
   plinkoMultiplier,
   plinkoPath,
+  spinWheel,
+  type WheelRisk,
   PLINKO_RISK,
   PLINKO_ROWS,
   type PlinkoRisk,
@@ -538,4 +540,14 @@ export function createCrashDemo(): CrashDemoRunner {
       return breaks;
     },
   };
+}
+
+
+/** The wheel, in demo mode. One shot, same maths, no server. */
+export function demoWheel(stake: bigint, risk: WheelRisk): DemoRoundResult {
+  if (!stakeDemo(stake)) return INSUFFICIENT;
+  const { serverSeed, clientSeed } = seeds();
+  const nonce = nextNonce();
+  const { segment, multiplier } = spinWheel(serverSeed, clientSeed, nonce, risk);
+  return settle(stake, multiplier, { segment, risk }, nonce);
 }

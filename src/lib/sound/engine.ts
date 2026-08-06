@@ -169,28 +169,42 @@ export function buildChain(ctx: AudioContext, volume: number): Chain {
   glue.release.value = 0.18;
   glue.connect(limiter);
 
-  // A whisker of top end. Synthesis without it sounds like it is happening
-  // behind a curtain.
+  // Top end pulled *down*, not up.
+  //
+  // This shelf started at +3dB, on the theory that synthesis without air sounds
+  // like it is happening behind a curtain. It does — and the cost was that
+  // eighty pin strikes in three seconds became genuinely unpleasant, because
+  // the frequencies that read as "crisp" on one hit are the same ones that read
+  // as "shrill" on the fiftieth. Listener fatigue lives between 2 and 6kHz, and
+  // a game that is played in long sessions has to give that band up.
   const air = ctx.createBiquadFilter();
   air.type = "highshelf";
-  air.frequency.value = 7200;
-  air.gain.value = 3;
+  air.frequency.value = 5200;
+  air.gain.value = -3.5;
   air.connect(glue);
+
+  // A gentle scoop where the ear is most sensitive, for the same reason.
+  const tame = ctx.createBiquadFilter();
+  tame.type = "peaking";
+  tame.frequency.value = 3100;
+  tame.Q.value = 0.9;
+  tame.gain.value = -3;
+  tame.connect(air);
 
   const duck = ctx.createGain();
   duck.gain.value = 1;
-  duck.connect(air);
+  duck.connect(tame);
 
   // ── Reverb send ─────────────────────────────────────────────────────
   const reverbSend = ctx.createGain();
   reverbSend.gain.value = 1;
   const damp = ctx.createBiquadFilter();
   damp.type = "lowpass";
-  damp.frequency.value = 3400;
+  damp.frequency.value = 2400;
   const convolver = ctx.createConvolver();
-  convolver.buffer = buildRoom(ctx, 1.1, 2.4);
+  convolver.buffer = buildRoom(ctx, 0.9, 3.0);
   const reverbReturn = ctx.createGain();
-  reverbReturn.gain.value = 0.55;
+  reverbReturn.gain.value = 0.32;
   reverbSend.connect(damp);
   damp.connect(convolver);
   convolver.connect(reverbReturn);
@@ -206,12 +220,12 @@ export function buildChain(ctx: AudioContext, volume: number): Chain {
   left.delayTime.value = 0.351;
   right.delayTime.value = 0.351 * 2;
   const feedback = ctx.createGain();
-  feedback.gain.value = 0.32;
-  const tame = ctx.createBiquadFilter();
-  tame.type = "lowpass";
-  tame.frequency.value = 2600;
+  feedback.gain.value = 0.24;
+  const echoDamp = ctx.createBiquadFilter();
+  echoDamp.type = "lowpass";
+  echoDamp.frequency.value = 2200;
   const delayReturn = ctx.createGain();
-  delayReturn.gain.value = 0.4;
+  delayReturn.gain.value = 0.26;
   const spreadLeft = ctx.createStereoPanner();
   const spreadRight = ctx.createStereoPanner();
   spreadLeft.pan.value = -0.8;
@@ -223,8 +237,8 @@ export function buildChain(ctx: AudioContext, volume: number): Chain {
   left.connect(right);
   right.connect(spreadRight);
   spreadRight.connect(delayReturn);
-  right.connect(tame);
-  tame.connect(feedback);
+  right.connect(echoDamp);
+  echoDamp.connect(feedback);
   feedback.connect(left);
   delayReturn.connect(duck);
 

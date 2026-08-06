@@ -2,7 +2,7 @@
  * Game mathematics.
  *
  * Every payout here is derived from the true odds and then multiplied by
- * (1 − edge). The edge is a stated number, not a mystery: 1% on all five games,
+ * (1 − edge). The edge is a stated number, not a mystery: 1% on every game,
  * printed on each game's page and on /games/fairness, and asserted by tests
  * that simulate the distribution rather than taking the formula's word for it.
  *
@@ -12,7 +12,15 @@
 
 import { floatStream, seededShuffle } from "@/lib/fair";
 
-export const GAMES = ["tower", "coin-flip", "dice", "mines", "crash", "plinko"] as const;
+export const GAMES = [
+  "tower",
+  "coin-flip",
+  "dice",
+  "mines",
+  "crash",
+  "plinko",
+  "wheel",
+] as const;
 export type GameId = (typeof GAMES)[number];
 
 /** One percent. Held in basis points so it cannot drift. */
@@ -449,4 +457,96 @@ export const GAME_META: Record<GameId, GameMeta> = {
     rule: "A ball falls through the pins. The bucket it lands in sets your payout — the middle is likely and cheap, the edges rare and not.",
     accent: "blue",
   },
+  wheel: {
+    id: "wheel",
+    name: "Wheel",
+    tagline: "Watch it slow down.",
+    rule: "Fifty-four segments, one pointer. Pick a ring and spin — the last second, when it is barely turning, is the game.",
+    accent: "amber",
+  },
 };
+
+
+/* ── Wheel ─────────────────────────────────────────────────────────────── */
+
+export const WHEEL_RISKS = ["low", "medium", "high"] as const;
+export type WheelRisk = (typeof WHEEL_RISKS)[number];
+
+export const WHEEL_SEGMENTS = 54;
+
+/**
+ * The wheel.
+ *
+ * A ring of segments, a pointer, and a spin that slows down. It is here because
+ * of the deceleration: the last second of a wheel — when the ticker is crawling
+ * and you can see which segment it might just reach — is one of the most
+ * effective moments in any game of chance, and none of the other six have it.
+ * Crash has tension you must act on; the wheel has tension you can only watch.
+ *
+ * The layout of each ring is a pattern rather than a table of numbers: a base
+ * multiplier repeated, with better ones spaced evenly through it. `low` is
+ * mostly small wins, `high` is mostly nothing with a few large ones, and — as
+ * everywhere else in this wing — all three return the same 99%, which is
+ * asserted by a test rather than claimed here.
+ */
+const WHEEL_SHAPES: Record<WheelRisk, readonly number[]> = {
+  // Multiplier per segment, tiled around the ring. Each array is one repeat.
+  low: [0, 1.2, 1.5, 1.2, 0, 1.2, 1.5, 1.2, 0],
+  medium: [0, 1.5, 0, 2, 0, 3, 0, 1.5, 0],
+  high: [0, 0, 0, 0, 0, 0, 0, 0, 9.9],
+};
+
+/**
+ * The ring for a risk, normalised so the expected return is exactly 99%.
+ *
+ * The shapes above are the *look* of the wheel — where the wins sit and how
+ * often. The scaling is computed from them, so changing the pattern can never
+ * silently change the edge.
+ */
+function buildWheel(risk: WheelRisk): readonly number[] {
+  const shape = WHEEL_SHAPES[risk];
+  const ring: number[] = [];
+  for (let i = 0; i < WHEEL_SEGMENTS; i += 1) {
+    ring.push(shape[i % shape.length] ?? 0);
+  }
+
+  const mean = ring.reduce((sum, value) => sum + value, 0) / ring.length;
+  const scale = mean > 0 ? (10_000 - HOUSE_EDGE_BP) / 10_000 / mean : 0;
+
+  return ring.map((value) =>
+    value <= 0 ? 0 : Math.max(1, Math.floor(value * scale * MULTIPLIER_SCALE)),
+  );
+}
+
+const WHEEL_RINGS = new Map<WheelRisk, readonly number[]>(
+  WHEEL_RISKS.map((risk) => [risk, buildWheel(risk)] as const),
+);
+
+export function wheelRing(risk: WheelRisk = "medium"): readonly number[] {
+  return WHEEL_RINGS.get(risk) ?? [];
+}
+
+/** The distinct multipliers on a ring, largest first, for the legend. */
+export function wheelPayouts(risk: WheelRisk = "medium"): readonly number[] {
+  return [...new Set(wheelRing(risk))].sort((a, b) => b - a);
+}
+
+export interface WheelOutcome {
+  readonly segment: number;
+  readonly multiplier: number;
+}
+
+export function spinWheel(
+  serverSeed: string,
+  clientSeed: string,
+  nonce: number,
+  risk: WheelRisk = "medium",
+): WheelOutcome {
+  const [value = 0] = floatStream(serverSeed, clientSeed, nonce, 1);
+  const segment = Math.min(WHEEL_SEGMENTS - 1, Math.floor(value * WHEEL_SEGMENTS));
+  return { segment, multiplier: wheelRing(risk)[segment] ?? 0 };
+}
+
+export function isWheelRisk(value: string): value is WheelRisk {
+  return (WHEEL_RISKS as readonly string[]).includes(value);
+}

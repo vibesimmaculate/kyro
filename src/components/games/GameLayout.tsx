@@ -18,6 +18,7 @@ const ACCENT: Record<GameId, string> = {
   mines: "var(--accent-mines)",
   crash: "var(--accent-crash)",
   plinko: "var(--accent-plinko)",
+  wheel: "var(--accent-wheel)",
 };
 
 export function GameLayout({

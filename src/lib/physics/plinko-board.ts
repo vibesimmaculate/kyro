@@ -191,6 +191,16 @@ export interface Ball extends Body {
   landed: boolean;
   readonly bucket: number;
   readonly tint: string;
+  /**
+   * How far off-centre this particular ball aims, as a multiple of `LATERAL`.
+   *
+   * Balls released together used to aim at exactly the same point beside
+   * exactly the same pin, so they converged, overlapped, got pushed apart by
+   * the renderer, and converged again — a pair could orbit each other all the
+   * way down without either making progress. Giving each ball its own line
+   * means two of them are never solving the same problem.
+   */
+  readonly bias: number;
 }
 
 export interface PegStrike {
@@ -208,6 +218,8 @@ export function createBall(options: {
   tint: string;
   /** Tiny lateral offset so simultaneous balls do not overlap perfectly. */
   jitter?: number;
+  /** 0, 1, 2… — which of the simultaneous balls this is. */
+  lane?: number;
   geometry?: BoardGeometry;
 }): Ball {
   const geometry = options.geometry ?? DEFAULT_GEOMETRY;
@@ -216,6 +228,8 @@ export function createBall(options: {
     path: options.path,
     bucket: options.bucket,
     tint: options.tint,
+    // Spread across roughly ±15%, cycling, so five balls take five lines.
+    bias: 1 + (((options.lane ?? 0) % 5) - 2) * 0.075,
     x: 0.5 + (options.jitter ?? 0),
     y: geometry.top - 0.05,
     vx: 0,
@@ -245,7 +259,8 @@ function aimFor(ball: Ball, geometry: BoardGeometry): number {
     return bucketCentre(ball.bucket, geometry.rows, geometry);
   }
   const peg = pegAt(ball.row, ball.col, geometry);
-  return peg.x + ((ball.path[ball.row] ?? "L") === "R" ? LATERAL : -LATERAL) * contactSpan(geometry);
+  const lateral = LATERAL * ball.bias;
+  return peg.x + ((ball.path[ball.row] ?? "L") === "R" ? lateral : -lateral) * contactSpan(geometry);
 }
 
 /** How far the ball still has to fall before it reaches its aim. */

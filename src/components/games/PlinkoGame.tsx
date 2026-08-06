@@ -33,7 +33,6 @@ import {
   geometryFor,
   landingY,
   pegAt,
-  reaim,
   stepBall,
   type Ball,
   type BoardGeometry,
@@ -72,7 +71,7 @@ type BallCount = (typeof BALL_COUNTS)[number];
 const TINTS = ["#c9a6ff", "#a97bff", "#8f6bff", "#dcc7ff", "#7f5bf0"] as const;
 
 /** Pins ring often; without a floor on the gap they become a buzz. */
-const BOUNCE_SOUND_GAP_MS = 24;
+const BOUNCE_SOUND_GAP_MS = 55;
 
 /** How long a landed ball stays visible in its slot. */
 const RESTING_MS = 900;
@@ -386,7 +385,6 @@ export function PlinkoGame({
         if (live.ball.landed) landed.push(live);
       }
 
-      separate(liveRef.current, geo);
       for (const live of landed) settle(live);
     }
 
@@ -510,6 +508,7 @@ export function PlinkoGame({
       // A hair of lateral offset per ball, so five released together separate
       // immediately instead of travelling as one indistinguishable clump.
       jitter: ((tintRef.current % 5) - 2) * geometry.ballRadius * 0.45,
+      lane: tintRef.current,
       geometry,
     });
 
@@ -536,7 +535,8 @@ export function PlinkoGame({
 
     for (let i = 0; i < count; i += 1) {
       // Stagger the releases. Five balls leaving on the same frame trace
-      // near-identical arcs; ninety milliseconds apart they fan out, and the
+      // near-identical arcs and spend the drop on top of one another; a hundred
+      // and fifty milliseconds apart they fan out into their own lanes and the
       // board fills the way a real one does.
       pendingRef.current += 1;
 
@@ -544,7 +544,7 @@ export function PlinkoGame({
         window.setTimeout(() => {
           pendingRef.current -= 1;
           release(demoPlinko(stake, rows, risk));
-        }, i * 90);
+        }, i * 150);
         continue;
       }
 
@@ -565,7 +565,7 @@ export function PlinkoGame({
             setFlying((n) => Math.max(0, n - 1));
             setError("That round could not be placed.");
           });
-      }, i * 90);
+      }, i * 150);
     }
   }
 
@@ -745,13 +745,31 @@ export function PlinkoGame({
   );
 }
 
+/**
+ * Draws a ball, at the depth its lane puts it.
+ *
+ * Balls deliberately do not collide with each other, and the reason is worth
+ * stating because the opposite looks obviously right. Every ball's bucket is
+ * committed by its own seed before release, so neither of a pair may deflect
+ * the other — and two committed paths that cross have to be allowed to cross.
+ * An earlier version pushed them apart on contact and it deadlocked exactly as
+ * you would expect: two balls aimed through each other, shoved apart, steered
+ * back together, and hung there in mid-air until the round timed out.
+ *
+ * So they pass, and the overlap is made legible instead of prevented. Each lane
+ * sits at a slightly different size with a slightly different tint, so one ball
+ * reads as being in front of the other rather than merged with it.
+ */
 function drawBall(
   ctx: CanvasRenderingContext2D,
   ball: Ball,
   width: number,
   height: number,
-  radius: number,
+  baseRadius: number,
 ): void {
+  // 1.0 down to about 0.86 across the lanes.
+  const depth = 1 - Math.abs(ball.bias - 1) * 1.9;
+  const radius = baseRadius * depth;
   const squash = ball.squash * 0.34;
 
   ctx.save();
@@ -778,49 +796,6 @@ function drawBall(
   ctx.fillStyle = gradient;
   ctx.fill();
   ctx.restore();
-}
-
-/**
- * Pushes overlapping balls apart.
- *
- * Position only, and then re-solve — never an impulse. Ball-on-ball collision
- * would be a force the committed trajectory never accounted for, and the seed
- * has already decided where each of these is going. Five balls tracing one line
- * down the board is a rendering problem, so it gets a rendering fix, and
- * `reaim` absorbs the displacement before it can become a wrong bucket.
- */
-function separate(balls: readonly Live[], geometry: BoardGeometry): void {
-  const minimum = geometry.ballRadius * 2;
-
-  for (let i = 0; i < balls.length; i += 1) {
-    for (let j = i + 1; j < balls.length; j += 1) {
-      const a = balls[i]?.ball;
-      const b = balls[j]?.ball;
-      if (!a || !b || a.landed || b.landed) continue;
-
-      let dx = b.x - a.x;
-      const dy = b.y - a.y;
-      let distance = Math.hypot(dx, dy);
-      if (distance >= minimum) continue;
-
-      // Perfectly stacked: nothing to push along, so pick a side.
-      if (distance < 1e-6) {
-        dx = minimum * 0.5;
-        distance = minimum * 0.5;
-      }
-
-      // Mostly lateral. Shoving balls vertically past each other reads as one
-      // overtaking the other, which is stranger than the overlap it fixes.
-      const push = ((minimum - distance) / distance) * 0.5;
-      a.x -= dx * push;
-      a.y -= dy * push * 0.3;
-      b.x += dx * push;
-      b.y += dy * push * 0.3;
-
-      reaim(a, geometry);
-      reaim(b, geometry);
-    }
-  }
 }
 
 /**

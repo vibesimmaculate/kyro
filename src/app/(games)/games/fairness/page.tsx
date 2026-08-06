@@ -134,7 +134,7 @@ export default async function FairnessPage() {
         </h2>
         <p className="mt-3 text-body text-night-muted">
           Fair odds would return 100%. KYRO returns {100 - HOUSE_EDGE_BP / 100}% — a house
-          edge of {formatBasisPoints(HOUSE_EDGE_BP)} on all five games. That is how the
+          edge of {formatBasisPoints(HOUSE_EDGE_BP)} on every game. That is how the
           business makes money, and over enough rounds it is what you should expect to lose.
         </p>
 

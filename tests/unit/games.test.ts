@@ -13,6 +13,11 @@ import {
   MULTIPLIER_SCALE,
   crashMultiplierAt,
   crashTimeFor,
+  spinWheel,
+  wheelPayouts,
+  wheelRing,
+  WHEEL_RISKS,
+  WHEEL_SEGMENTS,
   PLINKO_MULTIPLIERS,
   PLINKO_ROWS,
   crashPoint,
@@ -382,5 +387,46 @@ describe("the crash curve", () => {
     expect(early).toBeCloseTo(late, 0);
     expect(crashTimeFor(20_000)).toBeGreaterThan(1_000);
     expect(crashTimeFor(100_000)).toBeLessThan(11_000);
+  });
+});
+
+describe("the wheel", () => {
+  for (const risk of WHEEL_RISKS) {
+    it(`returns 99% on the ${risk} ring`, () => {
+      // The ring shapes are written as a *pattern* — where the wins sit and how
+      // often — and the scaling is derived from them. This is what stops a
+      // change to the pattern quietly changing the edge.
+      const ring = wheelRing(risk);
+      expect(ring).toHaveLength(WHEEL_SEGMENTS);
+
+      const expected =
+        ring.reduce((sum, multiplier) => sum + multiplier / MULTIPLIER_SCALE, 0) / ring.length;
+      expect(expected).toBeGreaterThan(0.985);
+      expect(expected).toBeLessThanOrEqual(0.99);
+    });
+  }
+
+  it("buys variance rather than value as the ring rises", () => {
+    const low = wheelPayouts("low");
+    const high = wheelPayouts("high");
+    expect(high[0] ?? 0).toBeGreaterThan(low[0] ?? 0);
+
+    const blanks = (risk: Parameters<typeof wheelRing>[0]) =>
+      wheelRing(risk).filter((multiplier) => multiplier === 0).length;
+    expect(blanks("high")).toBeGreaterThan(blanks("low"));
+  });
+
+  it("lands on every segment over enough spins, and pays what that segment says", () => {
+    const seen = new Set<number>();
+    for (let nonce = 0; nonce < 4000; nonce += 1) {
+      const { segment, multiplier } = spinWheel(SERVER, CLIENT, nonce, "medium");
+      expect(segment).toBeGreaterThanOrEqual(0);
+      expect(segment).toBeLessThan(WHEEL_SEGMENTS);
+      // The payout must come from the ring, not from a second calculation that
+      // could drift away from what the wheel actually draws.
+      expect(multiplier).toBe(wheelRing("medium")[segment]);
+      seen.add(segment);
+    }
+    expect(seen.size).toBe(WHEEL_SEGMENTS);
   });
 });

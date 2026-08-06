@@ -81,6 +81,11 @@ export function GameShell({
 /** What the game is and what it pays — readable without an account. */
 function GameExplainer({ meta }: { readonly meta: GameMeta }) {
   const odds: Record<GameMeta["id"], readonly [string, string][]> = {
+    wheel: [
+      ["Segments", "54, in one of three rings"],
+      ["Pays", "What the pointer stops on"],
+      ["Rings", "Low pays often and small; high pays rarely and large"],
+    ],
     tower: [
       ["Floors", "8, one trapped door on each"],
       ["Doors per floor", "2 to 4, depending on difficulty"],

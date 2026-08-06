@@ -6,7 +6,7 @@ import { cn } from "@/lib/cn";
 import { GAMES, GAME_META } from "@/lib/games";
 
 /**
- * Five games and two account links, on one rule. Narrow screens scroll it
+ * Every game and two account links, on one rule. Narrow screens scroll it
  * horizontally rather than hiding it behind a menu — with five destinations
  * that is faster than opening anything.
  */

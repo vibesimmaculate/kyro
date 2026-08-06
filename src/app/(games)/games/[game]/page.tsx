@@ -7,6 +7,7 @@ import { DiceGame } from "@/components/games/DiceGame";
 import { GameShell } from "@/components/games/GameShell";
 import { MinesGame } from "@/components/games/MinesGame";
 import { PlinkoGame } from "@/components/games/PlinkoGame";
+import { WheelGame } from "@/components/games/WheelGame";
 import { TowerGame } from "@/components/games/TowerGame";
 import { GAMES, GAME_META, type GameId } from "@/lib/games";
 import { DEMO_STARTING_BALANCE } from "@/lib/games/demo";
@@ -83,6 +84,8 @@ export default async function GamePage({
       <MinesGame asset={PLAY_ASSET} balance={balance} demo={demo} />
     ) : game === "crash" ? (
       <CrashGame asset={PLAY_ASSET} balance={balance} demo={demo} />
+    ) : game === "wheel" ? (
+      <WheelGame asset={PLAY_ASSET} balance={balance} demo={demo} />
     ) : (
       <PlinkoGame asset={PLAY_ASSET} balance={balance} demo={demo} />
     );

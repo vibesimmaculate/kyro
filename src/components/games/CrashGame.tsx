@@ -133,7 +133,7 @@ export function CrashGame({
 
     // A tone that rises with the curve. Thin on purpose — it plays several
     // times a second and must never become a siren.
-    if (elapsed - (climbToneRef.current - climbAtRef.current) > 130) {
+    if (elapsed - (climbToneRef.current - climbAtRef.current) > 210) {
       climbToneRef.current = now;
       playSound("climb", Math.min(1, Math.log10(reached / MULTIPLIER_SCALE + 1) * 1.6));
     }

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { GameMark } from "@/components/games/GameMark";
 import { cn } from "@/lib/cn";
 import { GAMES, GAME_META, HOUSE_EDGE_BP } from "@/lib/games";
 import { formatBasisPoints, formatCrypto } from "@/lib/money/format";
@@ -11,7 +12,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Games",
-  description: "Five games with a stated 1% edge and outcomes you can verify yourself.",
+  description: "Seven games with a stated 1% edge and outcomes you can verify yourself.",
   robots: { index: false, follow: false },
 };
 
@@ -28,11 +29,11 @@ export default async function GamesPage() {
             <span aria-hidden="true" className="mark-square bg-night-blue" />
             Games
           </p>
-          <h1 className="mt-5 text-display">Five games. One stated edge.</h1>
+          <h1 className="mt-5 text-display">Seven games. One stated edge.</h1>
           <p className="mt-5 max-w-[46ch] text-lead text-night-muted">
             Every outcome comes from a seed committed to before you bet, and can be
             recomputed by anyone afterwards. The house edge is {formatBasisPoints(HOUSE_EDGE_BP)}
-            {" "}on all five — printed here, not buried in terms.
+            {" "}on every one — printed here, not buried in terms.
           </p>
 
           <ul className="mt-8 space-y-3 border-t border-night-rule pt-6 text-small">
@@ -111,39 +112,71 @@ export default async function GamesPage() {
         </aside>
       </div>
 
-      {/* The five games, as a list of rules rather than a grid of cards. */}
-      <section aria-labelledby="games-heading" className="mt-16 border-t border-night-rule pt-2">
-        <h2 id="games-heading" className="sr-only">
-          The games
-        </h2>
-        <ul>
-          {GAMES.map((id, index) => {
+      {/* The games, as a board of marks rather than a list of rules.
+
+          The list this replaces was accurate, legible and completely wrong for
+          the room: seven rows of text with an arrow at the end reads as a
+          directory of articles. A game wing has to look like somewhere you go
+          to play, which means each game gets its own mark, its own colour and
+          enough size to be aimed at. */}
+      <section aria-labelledby="games-heading" className="mt-14">
+        <div className="flex items-baseline justify-between gap-4 border-b border-night-rule pb-3">
+          <h2 id="games-heading" className="text-section font-semibold">
+            Choose a game
+          </h2>
+          <p className="label-mono text-night-muted">
+            {formatBasisPoints(HOUSE_EDGE_BP)} edge on every one
+          </p>
+        </div>
+
+        <ul className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {GAMES.map((id) => {
             const meta = GAME_META[id];
             return (
-              <li key={id} className="border-b border-night-rule">
+              <li key={id} style={{ ["--accent" as string]: `var(--accent-${id})` }}>
                 <Link
                   href={`/games/${id}`}
                   className={cn(
-                    "group grid gap-x-6 gap-y-1 py-6 transition-colors sm:grid-cols-12 sm:items-baseline",
-                    "hover:bg-night-raised focus-visible:bg-night-raised",
+                    "group relative flex h-full flex-col overflow-hidden rounded-[14px] p-5",
+                    "border border-night-rule bg-night-raised",
+                    "transition-[border-color,transform,box-shadow]",
+                    "duration-[var(--duration-base)] ease-[var(--ease-out-quiet)]",
+                    "hover:-translate-y-0.5 hover:border-[var(--accent)]/50",
+                    "hover:shadow-[0_18px_40px_-24px_var(--accent)]",
+                    "focus-visible:border-[var(--accent)]",
                   )}
                 >
-                  <span className="section-index text-night-muted sm:col-span-1">
-                    {String(index + 1).padStart(2, "0")}
-                  </span>
-                  <span className="sm:col-span-3">
-                    <span className="text-section font-semibold">{meta.name}</span>
-                  </span>
-                  <span className="text-lead text-night-muted sm:col-span-4">
-                    {meta.tagline}
-                  </span>
-                  <span className="text-small text-night-muted sm:col-span-3">{meta.rule}</span>
+                  {/* A wash of the game's own colour, so the grid reads as
+                      seven rooms rather than seven identical cards. */}
                   <span
                     aria-hidden="true"
-                    className="text-night-muted transition-transform group-hover:translate-x-1 group-hover:text-night-text sm:col-span-1 sm:text-end"
-                  >
-                    →
-                  </span>
+                    className={cn(
+                      "pointer-events-none absolute -top-16 -right-16 h-40 w-40 rounded-full",
+                      "bg-[var(--accent)] opacity-[0.07] blur-2xl transition-opacity",
+                      "duration-[var(--duration-slow)] group-hover:opacity-[0.16]",
+                    )}
+                  />
+
+                  <div className="relative flex items-start justify-between gap-4">
+                    <GameMark
+                      game={id}
+                      className="h-11 w-11 flex-none text-[var(--accent)]"
+                    />
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        "text-night-muted transition-transform",
+                        "duration-[var(--duration-base)] group-hover:translate-x-1",
+                        "group-hover:text-[var(--accent)]",
+                      )}
+                    >
+                      →
+                    </span>
+                  </div>
+
+                  <h3 className="relative mt-5 text-subhead font-semibold">{meta.name}</h3>
+                  <p className="relative mt-1 text-small text-[var(--accent)]">{meta.tagline}</p>
+                  <p className="relative mt-3 text-small text-night-muted">{meta.rule}</p>
                 </Link>
               </li>
             );

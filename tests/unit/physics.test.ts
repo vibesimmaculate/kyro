@@ -153,6 +153,37 @@ describe("the pin board", () => {
     });
   }
 
+  for (const rows of PLINKO_ROW_OPTIONS) {
+    it(`lands five simultaneous balls without one hanging, at ${rows} rows`, () => {
+      // The bug this guards is specific and was real: balls used to be pushed
+      // apart on contact and re-aimed, so a pair travelling through each other
+      // was shoved apart, steered back together, and hung in mid-air until the
+      // round gave up. They do not collide now — two committed paths that cross
+      // have to be allowed to cross — and this proves none of them stalls.
+      const geometry = geometryFor(rows);
+      const pegs = buildPegs(geometry);
+
+      for (let round = 0; round < 12; round += 1) {
+        const balls = Array.from({ length: 5 }, (_, lane) => {
+          const { path, bucket } = plinkoPath("s", "c", round * 5 + lane, rows);
+          return createBall({ id: `${lane}`, path, bucket, tint: "#fff", lane, geometry });
+        });
+
+        let seconds = 0;
+        while (balls.some((ball) => !ball.landed) && seconds < 12) {
+          for (const ball of balls) stepBall(ball, pegs, 1 / 120, geometry);
+          seconds += 1 / 120;
+        }
+
+        for (const ball of balls) {
+          expect(ball.landed).toBe(true);
+          expect(ball.col).toBe(ball.bucket);
+        }
+        expect(seconds).toBeLessThan(6);
+      }
+    });
+  }
+
   it("keeps the ball inside the board", () => {
     const geometry = geometryFor(16);
     const pegs = buildPegs(geometry);
