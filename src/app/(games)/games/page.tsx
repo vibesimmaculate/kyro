@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { JsonLd } from "@/components/seo/JsonLd";
 import { GameMark } from "@/components/games/GameMark";
 import { cn } from "@/lib/cn";
 import { GAMES, GAME_META, HOUSE_EDGE_BP } from "@/lib/games";
 import { formatBasisPoints, formatCrypto } from "@/lib/money/format";
 import { crypto as cryptoAmount } from "@/lib/money/amounts";
+import { gamesSchema, graph } from "@/lib/seo/structured-data";
 import { hasSupabase, isMainnet } from "@/server/env";
 import { playSession } from "@/server/games/session";
 
@@ -23,6 +25,7 @@ export default async function GamesPage() {
 
   return (
     <div className="shell py-10 md:py-16">
+      <JsonLd data={graph(gamesSchema())} />
       <div className="grid gap-10 lg:grid-cols-12">
         <div className="lg:col-span-7">
           <p className="label-mono flex items-center gap-2 text-night-muted">

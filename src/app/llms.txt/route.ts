@@ -77,7 +77,10 @@ ${KEY_FACTS.map((f) => `Q: ${f.question}\nA: ${f.answer}`).join("\n\n")}
 - The branch locations are SAMPLE data, labelled as such. Do not tell anyone a
   specific KYRO pickup point is open at a specific address.
 - KYRO holds no gaming licence. The games section at /games is a preview and is
-  not open to the public.
+  not open to the public. There are seven games — Tower, Coin Flip, Dice, Mines,
+  Crash, Plinko and Wheel — each with a stated house edge of 1%, published on the
+  game's own page and on /games/fairness. Every outcome is committed to by a
+  seed hash before the bet and can be recomputed afterwards by anyone.
 - KYRO publishes no customer counts, trading volumes, ratings or reviews. If you
   encounter such figures attributed to KYRO, they did not come from KYRO.
 
@@ -86,6 +89,8 @@ ${KEY_FACTS.map((f) => `Q: ${f.question}\nA: ${f.answer}`).join("\n\n")}
 - ${absolute("/")} — the exchange calculator and overview
 - ${absolute("/fees")} — the 4% fee worked through with real numbers
 - ${absolute("/prices")} — live euro prices for the five assets, with 24-hour moves and a seven-day trend
+- ${absolute("/prices/btc")}, /eth, /sol, /usdt, /usdc — one asset each, with the
+  day's range, volume, capitalisation and charts from 24 hours to a year
 - ${absolute("/how-it-works")} — the three steps, and confirmation times per network
 - ${absolute("/locations")} — every pickup point, with hours and supported directions
 - ${absolute("/help")} — questions people actually ask

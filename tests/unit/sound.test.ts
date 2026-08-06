@@ -1,5 +1,6 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { buildChain, duckFor, isReady, noise, sub, teardown, tone } from "@/lib/sound/engine";
+import { noteLoss, noteWin, play, setSoundEnabled } from "@/lib/sound";
 
 /**
  * A minimal Web Audio stand-in.
@@ -158,6 +159,12 @@ function start(): FakeContext {
   return ctx;
 }
 
+beforeEach(() => {
+  // The module remembers whether sound is on; the tests need it on.
+  setSoundEnabled(true);
+  noteLoss();
+});
+
 afterEach(() => {
   teardown();
 });
@@ -249,3 +256,54 @@ describe("voices", () => {
 function inboundTo(ctx: FakeContext, target: FakeNode): FakeNode[] {
   return ctx.nodes.filter((node) => node.connections.includes(target));
 }
+
+describe("the win streak", () => {
+  it("climbs on consecutive wins and caps", () => {
+    // A streak is a real thing that is really happening, so reflecting it in
+    // the pitch is honest. It has to stop climbing somewhere.
+    expect(noteWin()).toBe(1);
+    expect(noteWin()).toBe(2);
+    for (let i = 0; i < 20; i += 1) noteWin();
+    expect(noteWin()).toBe(6);
+  });
+
+  it("resets on a loss", () => {
+    noteWin();
+    noteWin();
+    noteLoss();
+    expect(noteWin()).toBe(1);
+  });
+
+  it("resets when a losing sound plays, from wherever it was played", () => {
+    // The guard that matters: a streak surviving a bust would be the audio
+    // telling the player something untrue about their own session.
+    start();
+    noteWin();
+    noteWin();
+    play("lose");
+    expect(noteWin()).toBe(1);
+
+    noteWin();
+    play("break");
+    expect(noteWin()).toBe(1);
+  });
+
+  it("never sounds a loss like a win", () => {
+    // The gambling literature on losses disguised as wins is unambiguous:
+    // celebratory audio over a losing outcome makes players overestimate how
+    // often they won. A loss must schedule strictly less than a win does.
+    const losing = new FakeContext();
+    buildChain(losing as unknown as AudioContext, 0.9);
+    play("lose");
+    const lossVoices = losing.started.length;
+    teardown();
+
+    const winning = new FakeContext();
+    buildChain(winning as unknown as AudioContext, 0.9);
+    play("win", 1);
+    const winVoices = winning.started.length;
+
+    expect(lossVoices).toBeGreaterThan(0);
+    expect(winVoices).toBeGreaterThan(lossVoices * 3);
+  });
+});

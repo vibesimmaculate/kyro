@@ -115,7 +115,7 @@ export function TowerGame({
     } else if (state.finished) {
       celebrate(state.multiplier ?? 0);
     } else {
-      feedback("step", (state.climbed?.length ?? 1) - 1, 10);
+      feedback("chime", (state.climbed?.length ?? 1) - 1, 10);
     }
   }
 

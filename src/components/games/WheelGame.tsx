@@ -5,6 +5,7 @@ import { BetPanel, PlayButton } from "@/components/games/BetPanel";
 import { EffectsLayer, type EffectsHandle } from "@/components/games/EffectsLayer";
 import { GameBoard, type HistoryEntry } from "@/components/games/GameBoard";
 import { GameLayout } from "@/components/games/GameLayout";
+import { HotkeyLegend, Hotkeys } from "@/components/games/Hotkeys";
 import { pushHistory } from "@/components/games/GameHistory";
 import { Segmented } from "@/components/games/Segmented";
 import { frameNow, nowMs } from "@/lib/clock";
@@ -131,7 +132,7 @@ export function WheelGame({
       const passed = Math.floor(-angle / step);
       if (passed !== tickRef.current) {
         if (tickRef.current >= 0) {
-          playSound("bounce", 1 - progress * 0.6);
+          playSound("ratchet", progress);
         }
         tickRef.current = passed;
       }
@@ -227,6 +228,13 @@ export function WheelGame({
   const payouts = wheelPayouts(risk);
 
   return (
+    <>
+      <Hotkeys
+        go={spin}
+        double={() => setStake(stake * 2n > balance ? balance : stake * 2n)}
+        half={() => setStake(stake / 2n)}
+        disabled={busy || stake <= 0n || stake > balance}
+      />
     <GameLayout
       game="wheel"
       board={
@@ -336,6 +344,7 @@ export function WheelGame({
                 Every ring returns the same 99% over time. A higher ring buys
                 variance, never value.
               </p>
+              <HotkeyLegend primary="spin" />
             </div>
           }
           action={
@@ -364,6 +373,7 @@ export function WheelGame({
         </BetPanel>
       }
     />
+    </>
   );
 }
 

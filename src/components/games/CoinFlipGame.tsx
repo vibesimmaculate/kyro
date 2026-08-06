@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { BetPanel, PlayButton } from "@/components/games/BetPanel";
 import { GameBoard, type HistoryEntry } from "@/components/games/GameBoard";
 import { GameLayout } from "@/components/games/GameLayout";
+import { HotkeyLegend, Hotkeys } from "@/components/games/Hotkeys";
 import { pushHistory } from "@/components/games/GameHistory";
 import { cn } from "@/lib/cn";
 import { prefersReducedMotion } from "@/lib/use-reduced-motion";
@@ -118,6 +119,13 @@ export function CoinFlipGame({
   const landsOn: CoinSide = landed ?? pick;
 
   return (
+    <>
+      <Hotkeys
+        go={flip}
+        double={() => setStake(stake * 2n > balance ? balance : stake * 2n)}
+        half={() => setStake(stake / 2n)}
+        disabled={busy || stake <= 0n || stake > balance}
+      />
     <GameLayout
       game="coin-flip"
       board={
@@ -195,10 +203,13 @@ export function CoinFlipGame({
           disabled={busy}
           demo={demo}
           summary={
-            <p className="border-t border-night-rule pt-4 text-micro text-night-muted">
+            <div className="border-t border-night-rule pt-4">
+            <p className="text-micro text-night-muted">
               A fair coin would pay 2.00×. KYRO pays 1.98× — the stated 1% edge, and the
               whole of it.
             </p>
+            <HotkeyLegend primary="flip" />
+            </div>
           }
           action={
             <PlayButton onClick={flip} disabled={busy || stake <= 0n || stake > balance}>
@@ -236,6 +247,7 @@ export function CoinFlipGame({
         </BetPanel>
       }
     />
+    </>
   );
 }
 

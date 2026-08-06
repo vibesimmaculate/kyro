@@ -5,6 +5,7 @@ import { BetPanel, PlayButton } from "@/components/games/BetPanel";
 import { EffectsLayer, type EffectsHandle } from "@/components/games/EffectsLayer";
 import { GameBoard, type HistoryEntry } from "@/components/games/GameBoard";
 import { GameLayout } from "@/components/games/GameLayout";
+import { HotkeyLegend, Hotkeys } from "@/components/games/Hotkeys";
 import { pushHistory } from "@/components/games/GameHistory";
 import { Segmented } from "@/components/games/Segmented";
 import { cn } from "@/lib/cn";
@@ -589,6 +590,13 @@ export function PlinkoGame({
   const busy = flying > 0;
 
   return (
+    <>
+      <Hotkeys
+        go={drop}
+        double={() => setStake(stake * 2n > balance ? balance : stake * 2n)}
+        half={() => setStake(stake / 2n)}
+        disabled={!canDrop}
+      />
     <GameLayout
       game="plinko"
       board={
@@ -683,11 +691,14 @@ export function PlinkoGame({
           disabled={busy}
           demo={demo}
           summary={
-            <p className="border-t border-night-rule pt-4 text-micro text-night-muted">
+            <div className="border-t border-night-rule pt-4">
+            <p className="text-micro text-night-muted">
               Risk changes the shape of the curve, never the return: all three are
               normalised to the same 99%. Low keeps more of your stake in the middle;
               high hollows it out and pays the edges.
             </p>
+            <HotkeyLegend primary="drop" />
+            </div>
           }
           action={
             <PlayButton onClick={drop} disabled={!canDrop}>
@@ -742,6 +753,7 @@ export function PlinkoGame({
         </BetPanel>
       }
     />
+    </>
   );
 }
 

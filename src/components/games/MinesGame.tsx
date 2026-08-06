@@ -110,7 +110,7 @@ export function MinesGame({
     record(state);
 
     if (state.busted) {
-      feedback("break", 0, [45, 30, 70]);
+      feedback("bomb", 0, [45, 30, 70]);
       setShake(true);
       window.setTimeout(() => setShake(false), 700);
     } else if (state.finished) {
@@ -118,6 +118,7 @@ export function MinesGame({
     } else {
       // The note climbs with the tile count, so a long run runs up the scale.
       feedback("step", (state.revealed?.length ?? 1) - 1, 10);
+      playSound("dig");
     }
   }
 

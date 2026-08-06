@@ -52,7 +52,12 @@ export type SoundName =
   | "land"
   | "tension"
   | "riser"
-  | "impact";
+  | "impact"
+  | "tumble"
+  | "dig"
+  | "bomb"
+  | "ratchet"
+  | "chime";
 
 const STORAGE_KEY = "kyro.sound";
 
@@ -163,7 +168,64 @@ function fatigue(name: SoundName, at: number): number {
 }
 
 /** Adaptive intensity touches the celebrations and nothing else. */
-const lift = (base: number): number => base * (1 + intensity() * 0.25);
+const lift10 = (base: number): number => base * (1 + intensity() * 0.25);
+
+
+/* ── What the research actually says, and what this does with it ────────── */
+
+/**
+ * Two findings shape every reward sound below, and one of them is a warning.
+ *
+ * **Reward is two events, not one.** Imaging work on musical pleasure
+ * (Salimpoor et al., *Nature Neuroscience* 2011) found dopamine released in two
+ * anatomically distinct phases: in the caudate during *anticipation*, and in
+ * the nucleus accumbens at the peak itself. The build is not packaging around
+ * the payoff — it is half of the reward. So every celebration here is a rise
+ * and a resolution, the rise gets longer the larger the win, and the gap
+ * between them is deliberate.
+ *
+ * **Reward is prediction.** The follow-up work (Salimpoor et al., *Trends in
+ * Cognitive Sciences* 2015; Ferreri et al., *PNAS* 2019) frames musical
+ * pleasure as expectation set up and then met or knowingly violated. That is
+ * what a cadence is, so the wins here are cadences: a dominant that wants to
+ * resolve, and a tonic that resolves it. A jackpot resolves somewhere you did
+ * not expect.
+ *
+ * **And the warning.** The gambling-specific literature — Dixon and colleagues
+ * on losses disguised as wins, in *Journal of Gambling Studies* — shows that
+ * celebratory audio over a losing outcome makes players materially
+ * *overestimate how often they won*. Sound is powerful enough to rewrite what
+ * someone believes happened to their money. That is exactly why the losing
+ * sound in this file is short, low, unresolved and never scaled by anything,
+ * and why there is no near-miss cue anywhere in it. Everything below is built
+ * to make a real win feel as good as it can. None of it is pointed at a loss.
+ */
+
+/**
+ * How many wins in a row, for the transposition.
+ *
+ * A streak is a real thing that is really happening, so reflecting it is honest
+ * — unlike a near-miss, which is a loss dressed as an event. Each consecutive
+ * win lifts the cadence by a scale degree, which sets up a pattern the ear
+ * starts predicting; the prediction is the anticipation the imaging work is
+ * about. It resets on any loss and caps out, so it cannot climb forever.
+ */
+let streak = 0;
+
+export function noteWin(): number {
+  streak = Math.min(6, streak + 1);
+  return streak;
+}
+
+export function noteLoss(): void {
+  streak = 0;
+}
+
+/**
+ * Scale degrees for a run of wins, in the same minor pentatonic as everything
+ * else — so six wins in a row climb an octave and still resolve.
+ */
+const STREAK_LIFT = [0, 0, 2, 3, 5, 7, 12] as const;
 
 /* ── The pieces the big moments are built from ──────────────────────────── */
 
@@ -274,25 +336,83 @@ function shimmer(steps: readonly number[], gain: number, offset = 0): void {
   });
 }
 
+
+/**
+ * A cadence: a chord that wants to resolve, and the one that resolves it.
+ *
+ * This is the whole "expectation then fulfilment" mechanism in two chords. The
+ * dominant is deliberately unstable — it is the sound of a question — and the
+ * tonic answers it. Played at a win, the resolution lands at the same instant
+ * the figure does.
+ *
+ * `lift` transposes the pair, which is what a win streak does to it.
+ */
+function cadence(options: {
+  readonly gain: number;
+  readonly lift: number;
+  readonly hold: number;
+  /** Resolves somewhere unexpected. Reserved for the top of the range. */
+  readonly surprise?: boolean;
+}): void {
+  const root = 12 + options.lift;
+
+  // The question. A dominant seventh, short, slightly bright.
+  [7, 11, 14, 17].forEach((interval, i) => {
+    tone({
+      freq: hz(root + interval - 12),
+      duration: options.hold,
+      gain: options.gain * 0.5,
+      type: "sawtooth",
+      voices: 3,
+      spread: 12,
+      delay: i * 0.008,
+      attack: 0.006,
+      decay: options.hold * 0.4,
+      sustain: 0.5,
+      release: options.hold * 0.5,
+      pan: (i / 3 - 0.5) * 0.5,
+      filter: { freq: 1200, to: 3600, q: 1.1 },
+      sends: { reverb: 0.3, delay: 0.12 },
+    });
+  });
+
+  // The answer. A surprise resolution goes to the flat submediant instead of
+  // home — the harmonic shift that turns a good ending into a memorable one.
+  const answer = options.surprise ? root + 8 : root;
+  chord(answer, {
+    duration: 1.0,
+    gain: options.gain,
+    delay: options.hold * 0.92,
+    voices: 6,
+    spread: 22,
+  });
+  sub({ freq: hz(answer - 24), duration: 0.8, gain: 0.3, delay: options.hold * 0.92 });
+}
+
 /**
  * The drop.
  *
- * Riser, then a beat of nothing, then everything at once. The pause is not an
- * oversight — a drop with no gap before it is just a loud noise, and the beat
- * of silence is what the ear reads as the moment of impact.
+ * Anticipation, a beat of nothing, then resolution — the two phases, with the
+ * silence between them doing real work. The rise gets longer the bigger the
+ * win, because the anticipation phase is where half the reward lives and a
+ * larger prize has earned a longer wait for it.
  */
-function winDrop(strength: number): void {
-  const gain = lift(0.2) * (0.7 + strength * 0.5);
+function winDrop(strength: number, lift: number): void {
+  const gain = lift10(0.2) * (0.7 + strength * 0.5);
+  // 420ms at the bottom of the range, 760ms at the top.
+  const build = 0.42 + strength * 0.34;
 
-  riser(0.52, 0.11);
+  riser(build, 0.1 + strength * 0.03);
 
-  window.setTimeout(() => {
-    if (!isReady() || !enabled) return;
-    impact(0.8 + strength * 0.3);
-    chord(12, { duration: 1.1, gain, voices: 7, spread: 26 });
-    sub({ freq: 55, duration: 0.9, gain: 0.3, delay: 0.02 });
-    shimmer([0, 7, 12, 19, 24, 19, 12], gain * 0.4, 0.16);
-  }, 520);
+  window.setTimeout(
+    () => {
+      if (!isReady() || !enabled) return;
+      impact(0.8 + strength * 0.3);
+      cadence({ gain, lift, hold: 0.22, surprise: strength >= 0.9 });
+      shimmer([0, 7, 12, 19, 24, 19, 12], gain * 0.4, 0.3);
+    },
+    Math.round(build * 1000),
+  );
 }
 
 /**
@@ -303,6 +423,9 @@ function winDrop(strength: number): void {
  * nothing else, so a loss cannot be made to feel like a near-miss.
  */
 export function play(name: SoundName, level = 0, pan = 0): void {
+  // The streak resets on any losing sound, wherever it was played from — a
+  // run of wins that survives a loss would be a lie the audio was telling.
+  if (name === "lose" || name === "break") streak = 0;
   if (!isReady() || !enabled) return;
   const strength = Math.min(1, Math.max(0, level));
 
@@ -436,11 +559,12 @@ export function play(name: SoundName, level = 0, pan = 0): void {
       break;
 
     case "win": {
-      // Sub, chord, transient, air. Brighter and louder the more was won.
-      const gain = lift(0.17 + strength * 0.08);
+      // A short cadence: the question and its answer, a beat apart. Each win in
+      // a row lifts it a scale degree, so a run of them climbs.
+      const gain = lift10(0.17 + strength * 0.08);
       impact(0.45 + strength * 0.25);
-      chord(12, { duration: 0.7, gain, voices: 5, spread: 16 });
-      shimmer([12, 19, 24], gain * 0.34, 0.1);
+      cadence({ gain, lift: STREAK_LIFT[streak] ?? 0, hold: 0.16 });
+      shimmer([12, 19, 24], gain * 0.34, 0.22);
       break;
     }
 
@@ -448,19 +572,19 @@ export function play(name: SoundName, level = 0, pan = 0): void {
       // The drop. Rare on purpose — a sound that plays constantly stops
       // meaning anything, and this one has to still mean something on the
       // fiftieth round.
-      winDrop(strength);
+      winDrop(strength, STREAK_LIFT[streak] ?? 0);
       break;
 
     case "jackpot":
       // The top of the range, and audibly a different category rather than a
       // longer version of the same thing: the drop, then a second one an
       // octave up while the first is still ringing.
-      winDrop(1);
+      winDrop(1, STREAK_LIFT[streak] ?? 0);
       window.setTimeout(() => {
         if (!isReady() || !enabled) return;
         impact(1);
-        chord(24, { duration: 1.5, gain: lift(0.16), voices: 7, spread: 30 });
-        shimmer([0, 7, 12, 19, 24, 31, 36], lift(0.1), 0);
+        chord(24, { duration: 1.5, gain: lift10(0.16), voices: 7, spread: 30 });
+        shimmer([0, 7, 12, 19, 24, 31, 36], lift10(0.1), 0);
         noise({
           duration: 1.1,
           gain: 0.06,
@@ -595,6 +719,130 @@ export function play(name: SoundName, level = 0, pan = 0): void {
       });
       break;
 
+
+    case "tumble": {
+      // Dice. Three irregular knocks in quick succession — a cube landing on
+      // its corners, not a single generic click.
+      for (let i = 0; i < 3; i += 1) {
+        const wobble = vary();
+        tone({
+          freq: (300 + i * 60) * (1 + wobble * 0.14),
+          duration: 0.05,
+          type: "triangle",
+          gain: 0.06 - i * 0.01,
+          delay: i * 0.055 + Math.abs(wobble) * 0.02,
+          attack: 0.001,
+          decay: 0.02,
+          sustain: 0.1,
+          release: 0.03,
+          filter: { freq: 1100, q: 1.2 },
+          pan: wobble * 0.4,
+          sends: { reverb: 0.2 },
+        });
+        noise({
+          duration: 0.03,
+          gain: 0.03,
+          delay: i * 0.055,
+          attack: 0.001,
+          release: 0.024,
+          filter: { freq: 900, to: 400 },
+        });
+      }
+      break;
+    }
+
+    case "dig":
+      // Mines, on a safe tile. Soft, granular, and over immediately — it has
+      // to be repeatable twenty times without wearing.
+      noise({
+        duration: 0.06,
+        gain: 0.05 * fatigue("dig", nowMs()),
+        attack: 0.002,
+        decay: 0.02,
+        sustain: 0.2,
+        release: 0.04,
+        filter: { type: "bandpass", freq: 700 * (1 + vary() * 0.2), q: 0.9 },
+        pan,
+      });
+      tone({
+        freq: 220 * (1 + vary() * 0.1),
+        duration: 0.07,
+        type: "sine",
+        gain: 0.05,
+        attack: 0.002,
+        release: 0.05,
+      });
+      break;
+
+    case "bomb":
+      // Mines, on a mine. A real explosion: crack, body, and a sub that
+      // arrives underneath a moment later.
+      noise({
+        duration: 0.09,
+        gain: 0.16,
+        attack: 0.001,
+        decay: 0.03,
+        sustain: 0.3,
+        release: 0.06,
+        filter: { freq: 6000, to: 1800 },
+      });
+      noise({
+        duration: 0.7,
+        gain: 0.14,
+        attack: 0.004,
+        decay: 0.2,
+        sustain: 0.25,
+        release: 0.45,
+        filter: { freq: 1600, to: 120 },
+        sends: { reverb: 0.5 },
+      });
+      sub({ freq: 90, glideTo: 28, duration: 0.8, gain: 0.4, delay: 0.02 });
+      duckFor(0.55, 0.45);
+      break;
+
+    case "ratchet": {
+      // The wheel's ticker: a stiff sprung reed, not a click. Pitch rises very
+      // slightly as the wheel slows, which is the cue that it is about to stop.
+      const wobble = vary();
+      tone({
+        freq: (1180 + strength * 260) * (1 + wobble * 0.05),
+        duration: 0.03,
+        type: "square",
+        gain: 0.035 * fatigue("ratchet", nowMs()),
+        attack: 0.0008,
+        decay: 0.008,
+        sustain: 0.1,
+        release: 0.018,
+        filter: { freq: 2600, q: 3.2 },
+        pan: 0.2 + wobble * 0.2,
+      });
+      break;
+    }
+
+    case "chime":
+      // Tower, clearing a floor. A struck bar with a long tail, so a climb of
+      // eight of them turns into a phrase rather than eight events.
+      tone({
+        freq: hz((SCALE[Math.min(SCALE.length - 1, Math.round(level))] ?? 0) + 24),
+        duration: 0.7,
+        type: "sine",
+        gain: 0.1,
+        attack: 0.002,
+        decay: 0.22,
+        sustain: 0.22,
+        release: 0.45,
+        sends: { reverb: 0.55, delay: 0.3 },
+      });
+      tone({
+        freq: hz((SCALE[Math.min(SCALE.length - 1, Math.round(level))] ?? 0) + 36),
+        duration: 0.35,
+        type: "sine",
+        gain: 0.035,
+        delay: 0.01,
+        sends: { reverb: 0.6 },
+      });
+      break;
+
     case "break":
       // A real bust. Noise burst, falling sub, no melody, no resolution.
       noise({
@@ -653,6 +901,7 @@ export function feedback(
  * what counts as big. A four-decimal multiplier in, a sound out.
  */
 export function celebrate(multiplier: number, vibration: number | number[] = [12, 26, 12]): void {
+  noteWin();
   if (multiplier >= 250_000) feedback("jackpot", 1, [20, 40, 20, 40, 60]);
   else if (multiplier >= 50_000) feedback("bigWin", Math.min(1, multiplier / 250_000), vibration);
   else feedback("win", Math.min(1, multiplier / 60_000), vibration);

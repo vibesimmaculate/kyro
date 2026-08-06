@@ -5,6 +5,7 @@ import * as Slider from "@radix-ui/react-slider";
 import { BetPanel, PlayButton } from "@/components/games/BetPanel";
 import { GameBoard, type HistoryEntry } from "@/components/games/GameBoard";
 import { GameLayout } from "@/components/games/GameLayout";
+import { HotkeyLegend, Hotkeys } from "@/components/games/Hotkeys";
 import { pushHistory } from "@/components/games/GameHistory";
 import { cn } from "@/lib/cn";
 import { prefersReducedMotion } from "@/lib/use-reduced-motion";
@@ -113,7 +114,7 @@ export function DiceGame({
   function rollDice() {
     unlockSound();
     recordRound();
-    playSound("tick");
+    playSound("tumble");
     setSettled(false);
     setResult(undefined);
 
@@ -138,6 +139,13 @@ export function DiceGame({
   const busy = pending || rolling;
 
   return (
+    <>
+      <Hotkeys
+        go={rollDice}
+        double={() => setStake(stake * 2n > balance ? balance : stake * 2n)}
+        half={() => setStake(stake / 2n)}
+        disabled={busy || stake <= 0n || stake > balance}
+      />
     <GameLayout
       game="dice"
       board={
@@ -251,6 +259,7 @@ export function DiceGame({
                 <span aria-hidden="true" className="leader-night" />
                 <dd className="figure-num flex-none text-small">{target.toFixed(2)}</dd>
               </div>
+              <HotkeyLegend primary="roll" />
             </dl>
           }
           action={
@@ -324,5 +333,6 @@ export function DiceGame({
         </BetPanel>
       }
     />
+    </>
   );
 }

@@ -1,3 +1,4 @@
+import { GAMES, GAME_META, HOUSE_EDGE_BP } from "@/lib/games";
 import { LOCATIONS, COUNTRIES, MINUTES_LABEL, type Location } from "@/fixtures/locations";
 import { CRYPTO, FIAT } from "@/lib/money/currencies";
 import { SERVICE_FEE_BP } from "@/lib/quote/types";
@@ -185,4 +186,83 @@ export function supportedAssetsSchema(): Json {
 /** Wraps one or more nodes into a single graph, ready to render. */
 export function graph(...nodes: Json[]): string {
   return JSON.stringify({ "@context": "https://schema.org", "@graph": nodes });
+}
+
+/**
+ * The price pages, as a machine-readable list.
+ *
+ * These are the pages an assistant is most likely to be asked to summarise —
+ * "what is bitcoin worth in euro" is a question with an answer on this site —
+ * so they get an explicit `ItemList` rather than relying on a crawler to infer
+ * the set from links. Each entry carries the exchange rate specification so the
+ * *provenance* travels with the figure: this is a reference mid-price from a
+ * named feed, not something KYRO trades at.
+ */
+export function priceListSchema(): Json {
+  return {
+    "@type": "ItemList",
+    "@id": absolute("/prices#list"),
+    name: "Crypto prices in euro",
+    description:
+      "Live reference prices for the five assets KYRO exchanges, sourced from a public market feed and timestamped on the page. Reference mid-prices, not KYRO's dealing rate.",
+    itemListElement: Object.values(CRYPTO).map((asset, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: `${asset.name} price in euro`,
+      url: absolute(`/prices/${asset.code.toLowerCase()}`),
+    })),
+  };
+}
+
+/**
+ * A single asset's page.
+ *
+ * `ExchangeRateSpecification` is the vocabulary that actually fits: it lets the
+ * currency pair and the fee be stated separately, which is the distinction the
+ * whole product turns on — the market price is one number and what you pay is
+ * another.
+ */
+export function assetPriceSchema(code: string, name: string): Json {
+  return {
+    "@type": "WebPage",
+    "@id": absolute(`/prices/${code.toLowerCase()}#page`),
+    name: `${name} (${code}) price in euro`,
+    description: `The ${name} price in euro with the 24-hour move, the day's range, and charts from 24 hours to a year. A reference mid-price from a public feed — KYRO's own rate is quoted at the counter and carries a ${SERVICE_FEE_BP / 100}% fee.`,
+    isPartOf: { "@id": absolute("/#website") },
+    about: {
+      "@type": "ExchangeRateSpecification",
+      currency: code,
+      currentExchangeRate: {
+        "@type": "UnitPriceSpecification",
+        priceCurrency: "EUR",
+      },
+    },
+  };
+}
+
+/**
+ * The games, listed for machines.
+ *
+ * Every one carries its house edge as a stated number. If an assistant is going
+ * to describe this product to somebody, the edge is the single fact that most
+ * needs to travel with the description, and leaving it to be inferred from
+ * prose is how it gets dropped.
+ */
+export function gamesSchema(): Json {
+  return {
+    "@type": "ItemList",
+    "@id": absolute("/games#list"),
+    name: "KYRO games",
+    description: `${GAMES.length} provably fair games, each with a stated house edge of ${HOUSE_EDGE_BP / 100}%. KYRO holds no gaming licence and this section is a preview, not open to the public.`,
+    itemListElement: GAMES.map((id, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      item: {
+        "@type": "Game",
+        name: GAME_META[id].name,
+        description: GAME_META[id].rule,
+        url: absolute(`/games/${id}`),
+      },
+    })),
+  };
 }

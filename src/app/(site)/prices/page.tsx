@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { MarketTable } from "@/components/markets/MarketTable";
+import { JsonLd } from "@/components/seo/JsonLd";
 import { PageHeader } from "@/components/site/PageHeader";
 import { Section } from "@/components/site/Section";
 import { ButtonLink } from "@/components/ui/Button";
 import { formatAge } from "@/lib/markets/format";
+import { graph, priceListSchema } from "@/lib/seo/structured-data";
 import { SERVICE_FEE_BP } from "@/lib/quote/types";
 import { getMarkets } from "@/server/prices";
 import { requestNow } from "@/server/clock";
@@ -38,6 +40,7 @@ export default async function PricesPage() {
 
   return (
     <>
+      <JsonLd data={graph(priceListSchema())} />
       <PageHeader
         eyebrow="Prices"
         title="What the market is doing."

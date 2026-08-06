@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { BetPanel, PlayButton } from "@/components/games/BetPanel";
 import { GameBoard, type HistoryEntry } from "@/components/games/GameBoard";
 import { GameLayout } from "@/components/games/GameLayout";
+import { HotkeyLegend, Hotkeys } from "@/components/games/Hotkeys";
 import { pushHistory } from "@/components/games/GameHistory";
 import { EffectsLayer, type EffectsHandle } from "@/components/games/EffectsLayer";
 import { frameNow, nowMs } from "@/lib/clock";
@@ -318,6 +319,14 @@ export function CrashGame({
   const projected = payoutFor(stake, displayed);
 
   return (
+    <>
+      <Hotkeys
+        go={running ? undefined : bet}
+        out={running ? () => void leave(displayed) : undefined}
+        double={() => setStake(stake * 2n > balance ? balance : stake * 2n)}
+        half={() => setStake(stake / 2n)}
+        disabled={busy}
+      />
     <GameLayout
       game="crash"
       board={
@@ -431,12 +440,15 @@ export function CrashGame({
           disabled={running || busy}
           demo={demo}
           summary={
-            <p className="border-t border-night-rule pt-4 text-micro text-night-muted">
+            <div className="border-t border-night-rule pt-4">
+            <p className="text-micro text-night-muted">
               One round in a hundred breaks instantly at 1.00×. Every target returns
               the same 99% over time — no multiplier is a better bet than another.
               A target also settles on the server the moment it is reached, so a slow
               connection cannot cost you a round you had already decided to take.
             </p>
+            <HotkeyLegend primary="bet" secondary="take it" />
+            </div>
           }
           action={
             running ? (
@@ -498,6 +510,7 @@ export function CrashGame({
         </BetPanel>
       }
     />
+    </>
   );
 }
 

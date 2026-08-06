@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PriceChart } from "@/components/markets/PriceChart";
+import { JsonLd } from "@/components/seo/JsonLd";
 import { PageHeader } from "@/components/site/PageHeader";
 import { Section } from "@/components/site/Section";
 import { ButtonLink } from "@/components/ui/Button";
@@ -14,6 +15,7 @@ import {
   formatPrice,
 } from "@/lib/markets/format";
 import { CRYPTO, isCryptoCode, NETWORKS } from "@/lib/money/currencies";
+import { assetPriceSchema, graph } from "@/lib/seo/structured-data";
 import { requestNow } from "@/server/clock";
 import { CHART_RANGES, getHistory, getMarkets, type ChartRange } from "@/server/prices";
 
@@ -74,6 +76,7 @@ export default async function AssetPricePage({
 
   return (
     <>
+      <JsonLd data={graph(assetPriceSchema(code, meta.name))} />
       <PageHeader
         eyebrow={`${code} · ${meta.name}`}
         title={row ? formatPrice(row.eur) : "Price unavailable"}
