@@ -24,10 +24,58 @@ const PAGES = [
   "/sign-in",
 ];
 
+/**
+ * Waits until the stylesheet has actually applied.
+ *
+ * Axe measures geometry, so running it against an unstyled page does not test
+ * the page — it tests the raw document, where every link is its own text height
+ * and the WCAG target-size rule fails on all of them at once. That produced a
+ * spectacular twenty-six-node failure that had nothing to do with the site and
+ * everything to do with a stylesheet that had not landed yet.
+ *
+ * The skip link is the probe: it is `sr-only`, so once the stylesheet is in
+ * effect it collapses to roughly a pixel. If it still has the height of a line
+ * of text, the CSS is not there.
+ */
+async function expectStyled(page: import("@playwright/test").Page): Promise<void> {
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => {
+          const skip = document.querySelector("a[href='#main']");
+          return skip ? Math.round(skip.getBoundingClientRect().height) : -1;
+        }),
+      { message: "stylesheet never applied, so axe would be measuring an unstyled page" },
+    )
+    .toBeLessThanOrEqual(2);
+
+  // And until entrance animations have finished. Several figures on this site
+  // fade in over about 180ms, and axe sampling one at 40% opacity reports a
+  // contrast failure for text that is fully legible a fifth of a second later.
+  // Infinite animations are excluded rather than waited on, for obvious
+  // reasons.
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() =>
+          document
+            .getAnimations()
+            .filter((animation) => {
+              const timing = animation.effect?.getComputedTiming();
+              return timing !== undefined && Number.isFinite(timing.endTime ?? Infinity);
+            })
+            .some((animation) => animation.playState === "running"),
+        ),
+      { message: "entrance animations never settled" },
+    )
+    .toBe(false);
+}
+
 test.describe("accessibility", () => {
   for (const route of PAGES) {
     test(`${route} has no axe violations`, async ({ page }) => {
       await page.goto(route);
+      await expectStyled(page);
 
       const results = await new AxeBuilder({ page })
         .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
