@@ -78,7 +78,7 @@ export default async function WalletPage() {
                   return (
                     <label
                       key={network.id}
-                      className="tap flex cursor-pointer items-start gap-3 rounded-[8px] border border-rule-strong bg-white p-3 transition-colors hover:border-ink/40 has-[:checked]:border-blue has-[:checked]:bg-blue-wash"
+                      className="tap flex cursor-pointer items-start gap-3 rounded-[8px] border border-rule-strong bg-surface p-3 transition-colors hover:border-ink/40 has-[:checked]:border-blue has-[:checked]:bg-blue-wash"
                     >
                       <input
                         type="radio"

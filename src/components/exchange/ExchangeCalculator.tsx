@@ -266,7 +266,7 @@ export function ExchangeCalculator({
       submits={submits}
       action={formAction}
       className={cn(
-        "relative block rounded-[10px] border border-rule-strong bg-white",
+        "relative block rounded-[10px] border border-rule-strong bg-surface",
         variant === "hero" && "shadow-[var(--shadow-ticket)]",
         className,
       )}

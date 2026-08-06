@@ -63,7 +63,7 @@ export default async function TrackPage() {
             </div>
 
             {demos.length > 0 ? (
-              <div className="mt-5 rounded-[10px] border border-rule bg-white p-5">
+              <div className="mt-5 rounded-[10px] border border-rule bg-surface p-5">
                 <h2 className="label-mono text-ink-faint">Orders to try</h2>
                 <p className="mt-2 text-small text-ink-muted">
                   This is a preview build. These demonstration orders are seeded so the

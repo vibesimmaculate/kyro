@@ -81,7 +81,7 @@ export default function HelpPage() {
         id="contact"
       >
         <div className="grid gap-6 sm:grid-cols-2">
-          <div className="rounded-[10px] border border-rule-strong bg-white p-5">
+          <div className="rounded-[10px] border border-rule-strong bg-surface p-5">
             <h3 className="label-mono text-ink-faint">Email</h3>
             <p className="mt-2">
               <a

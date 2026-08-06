@@ -195,7 +195,7 @@ export default async function HomePage() {
         }
         tone="sunk"
       >
-        <div className="max-w-[34rem] rounded-[10px] border border-rule-strong bg-white p-5 sm:p-6">
+        <div className="max-w-[34rem] rounded-[10px] border border-rule-strong bg-surface p-5 sm:p-6">
           <div className="flex items-baseline justify-between gap-4 border-b border-rule pb-3">
             <p className="label-mono text-ink-faint">Worked example</p>
             <p className="label-mono text-ink-faint">Cash → Crypto</p>
@@ -230,7 +230,7 @@ export default async function HomePage() {
           </ButtonLink>
         }
       >
-        <div className="max-w-[34rem] rounded-[10px] border border-rule bg-white p-5 sm:p-6">
+        <div className="max-w-[34rem] rounded-[10px] border border-rule bg-surface p-5 sm:p-6">
           <div className="flex items-baseline justify-between gap-4 border-b border-rule pb-3">
             <p className="label-mono text-ink-faint">Example order</p>
             <p className="figure-num text-small">KYR-4H2N-8QX1</p>

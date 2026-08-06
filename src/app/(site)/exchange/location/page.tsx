@@ -98,7 +98,7 @@ export default async function LocationStepPage() {
                     <label
                       key={location.slug}
                       className={cn(
-                        "flex cursor-pointer items-start gap-3 rounded-[8px] border bg-white p-3.5 transition-colors",
+                        "flex cursor-pointer items-start gap-3 rounded-[8px] border bg-surface p-3.5 transition-colors",
                         "hover:border-ink/40 has-[:checked]:border-blue has-[:checked]:bg-blue-wash",
                         tooBig ? "border-amber/50" : "border-rule-strong",
                       )}

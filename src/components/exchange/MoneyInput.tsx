@@ -54,7 +54,7 @@ export function MoneyInput({
       <div
         className={cn(
           "mt-2 flex items-stretch gap-2 rounded-[8px] border transition-colors duration-[var(--duration-fast)]",
-          night ? "border-night-rule-strong bg-night-sunk" : "border-rule-strong bg-white",
+          night ? "border-night-rule-strong bg-night-sunk" : "border-rule-strong bg-surface",
           focused && (night ? "border-night-blue" : "border-blue"),
           invalid && (night ? "border-night-red" : "border-red"),
         )}

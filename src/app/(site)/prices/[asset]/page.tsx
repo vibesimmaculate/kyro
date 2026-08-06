@@ -143,7 +143,7 @@ export default async function AssetPricePage({
                       className={cn(
                         "tap flex min-h-11 items-center rounded-[8px] border px-3.5 text-small transition-colors",
                         selected
-                          ? "border-ink bg-ink text-white"
+                          ? "border-ink bg-ink text-paper"
                           : "border-rule-strong text-ink-muted hover:border-ink-muted hover:text-ink",
                       )}
                     >

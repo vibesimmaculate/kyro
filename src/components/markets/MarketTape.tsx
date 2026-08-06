@@ -65,7 +65,7 @@ export async function MarketTape({ className }: { readonly className?: string })
                   >
                     {formatChange(row.changePercent24h)}
                   </span>
-                  <span className="hidden sm:block lg:hidden xl:block">
+                  <span className="hidden sm:block lg:hidden 2xl:block">
                     <Sparkline
                       series={row.sparkline}
                       direction={direction}

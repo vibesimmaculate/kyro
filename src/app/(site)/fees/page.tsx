@@ -57,7 +57,7 @@ export default function FeesPage() {
           </>
         }
         aside={
-          <div className="rounded-[10px] border border-rule-strong bg-white p-4">
+          <div className="rounded-[10px] border border-rule-strong bg-surface p-4">
             <p className="label-mono text-ink-faint">Service fee</p>
             <p className="figure-num mt-1 text-[2.5rem] leading-none">4%</p>
             <p className="mt-2 text-small text-ink-muted">
@@ -73,7 +73,7 @@ export default function FeesPage() {
         lead="Cash in, bitcoin out. Every line that affects what you walk away with."
         id="example"
       >
-        <div className="max-w-[36rem] rounded-[10px] border border-rule-strong bg-white p-5 sm:p-6">
+        <div className="max-w-[36rem] rounded-[10px] border border-rule-strong bg-surface p-5 sm:p-6">
           <div className="flex items-baseline justify-between gap-4 border-b border-rule pb-3">
             <p className="label-mono text-ink-faint">Cash → Crypto</p>
             <p className="label-mono text-ink-faint">EUR → BTC · Bitcoin</p>
@@ -117,7 +117,7 @@ export default function FeesPage() {
       >
         <ScrollArea
           label="Service fee by exchange amount"
-          className="rounded-[10px] border border-rule bg-white"
+          className="rounded-[10px] border border-rule bg-surface"
         >
           <table className="w-full min-w-[24rem] border-collapse text-small">
             <caption className="sr-only">Service fee by exchange amount, in euro</caption>
@@ -164,7 +164,7 @@ export default function FeesPage() {
       >
         <ScrollArea
           label="Sample network fee by asset and network"
-          className="rounded-[10px] border border-rule bg-white"
+          className="rounded-[10px] border border-rule bg-surface"
         >
           <table className="w-full min-w-[28rem] border-collapse text-small">
             <caption className="sr-only">Sample network fee by asset and network</caption>

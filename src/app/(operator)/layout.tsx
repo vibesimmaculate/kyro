@@ -13,7 +13,7 @@ export default function OperatorLayout({
 }) {
   return (
     <div className="flex min-h-dvh flex-col bg-paper-sunk">
-      <header className="border-b border-rule-strong bg-white">
+      <header className="border-b border-rule-strong bg-surface">
         <div className="shell flex h-12 items-center gap-4">
           <Link href="/" className="flex items-center">
             <Wordmark size="sm" />

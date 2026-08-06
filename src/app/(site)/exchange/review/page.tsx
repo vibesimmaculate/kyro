@@ -52,7 +52,7 @@ export default async function ReviewPage() {
       locationSlug={draft.location}
     >
       <div className="max-w-[34rem] space-y-6">
-        <section className="rounded-[10px] border border-rule-strong bg-white p-5">
+        <section className="rounded-[10px] border border-rule-strong bg-surface p-5">
           <div className="flex items-baseline justify-between gap-3 border-b border-rule pb-3">
             <h2 className="label-mono text-ink-faint">The exchange</h2>
             <Link href="/exchange" className="text-small text-ink-muted underline underline-offset-4 hover:text-ink">
@@ -81,7 +81,7 @@ export default async function ReviewPage() {
         </section>
 
         {cashToCrypto && draft.walletAddress ? (
-          <section className="rounded-[10px] border border-rule-strong bg-white p-5">
+          <section className="rounded-[10px] border border-rule-strong bg-surface p-5">
             <div className="flex items-baseline justify-between gap-3 border-b border-rule pb-3">
               <h2 className="label-mono text-ink-faint">Sending to</h2>
               <Link
@@ -114,7 +114,7 @@ export default async function ReviewPage() {
           </section>
         ) : null}
 
-        <section className="rounded-[10px] border border-rule-strong bg-white p-5">
+        <section className="rounded-[10px] border border-rule-strong bg-surface p-5">
           <div className="flex items-baseline justify-between gap-3 border-b border-rule pb-3">
             <h2 className="label-mono text-ink-faint">
               {cashToCrypto ? "Paying at" : "Collecting at"}

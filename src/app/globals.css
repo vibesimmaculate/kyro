@@ -1,53 +1,70 @@
 @import "tailwindcss";
 
 /* ══════════════════════════════════════════════════════════════════════════
-   KYRO — "The Counter"
+   KYRO
 
-   Two materials: Paper for the world, White for functional surfaces.
-   Rules, not shadows. One blue. One accent at a time.
+   Dark ground, one lifted surface, hairline rules. One blue, one accent at a
+   time, and figures that carry the page.
+
+   This started life on cream paper as a Swiss editorial system, and the
+   typography, the grid, the dotted leaders and the refusal of decoration all
+   survive from it — they were never the problem. The ground was. A product
+   whose whole subject is crypto prices was rendering them on a colour that
+   reads as a bank statement, and a market figure wants to sit on something
+   dark for the same reason a screen in a dealing room does: the number is the
+   light in the room.
+
+   What is emphatically *not* inherited from the genre this now resembles:
+   no purple-to-blue gradients, no glassmorphism, no glow that is not
+   reporting a real state change, no 3D coins, no neon on text. Dark is a
+   ground, not a licence.
+
+   Every colour below is measured against every ground it is used on. The
+   tightest pairing in the system is 5.55:1, against a 4.5 requirement.
    ══════════════════════════════════════════════════════════════════════════ */
 
 @theme {
-  /* ── Surface ─────────────────────────────────────────────────────────── */
-  --color-paper: #f4f1ea;
-  --color-paper-sunk: #eeeae1;
-  --color-paper-edge: #e6e1d6;
+  /* ── Ground ──────────────────────────────────────────────────────────── */
+  /* Blue-cast near-black rather than neutral grey: neutral dark reads as
+     "unstyled", and the cast is what makes a screen look deliberate. */
+  --color-paper: #0e1116;
+  /* Recessed, so it goes *darker* than the page — the same relationship the
+     light version had, inverted along with everything else. */
+  --color-paper-sunk: #0a0d12;
+  --color-paper-edge: #171c25;
+  /* The one lifted material, where a receipt or a form sits. It replaces the
+     white card; `--color-white` stays literally white and is now used only
+     where white is meant, which is almost nowhere. */
+  --color-surface: #171c25;
+  --color-surface-strong: #1d232e;
   --color-white: #ffffff;
 
   /* ── Ink ─────────────────────────────────────────────────────────────── */
-  --color-ink: #111315;
-  --color-ink-muted: #62666b;
+  --color-ink: #f4f6fa;
+  --color-ink-muted: #98a2b3;
   /*
-   * The third tier is only fractionally lighter than the second, because the
-   * label style it carries is 11px and anything genuinely faint fails WCAG AA
-   * at that size — measured at 2.9:1 before this was corrected.
-   *
-   * Contrast is what constrains it: 4.89:1 on Paper and 4.63:1 on Paper-sunk.
-   * The tier still reads as quieter, but through the uppercase mono treatment
-   * and its tracking rather than through colour. That is the honest trade —
-   * a hierarchy nobody can read is not a hierarchy.
+   * The third tier, for the 11px mono labels. Contrast is what constrains it:
+   * 6.24:1 on the ground and 5.64:1 on the lifted surface. The tier reads as
+   * quieter through the uppercase treatment and its tracking as much as
+   * through colour — a hierarchy nobody can read is not a hierarchy.
    */
-  --color-ink-faint: #656970;
+  --color-ink-faint: #8a95a6;
 
   /* ── Rules ───────────────────────────────────────────────────────────── */
-  --color-rule: #d7d2c8;
-  --color-rule-strong: #bcb6a8;
-  --color-rule-faint: #e3dfd5;
+  --color-rule: #232a35;
+  --color-rule-strong: #333c4a;
+  --color-rule-faint: #1a202a;
 
   /* ── Signal ──────────────────────────────────────────────────────────── */
-  --color-blue: #1e4ed8;
-  --color-blue-press: #1a41b4;
-  --color-blue-wash: #eaeffc;
-  /* Darkened from #137a54, which cleared 4.5:1 on Paper (4.73) and quietly
-     failed it on Paper-sunk (4.44). A signal colour has to be legible on every
-     ground the system actually puts it on, not just the lightest one; this
-     clears 6.53 and 6.14 respectively. */
-  --color-green: #0f6244;
-  --color-green-wash: #e6f2ed;
-  --color-amber: #a15c00;
-  --color-amber-wash: #f9f0e2;
-  --color-red: #b42318;
-  --color-red-wash: #fbebe9;
+  --color-blue: #6b93ff;
+  --color-blue-press: #5680f0;
+  --color-blue-wash: #141c33;
+  --color-green: #3ade97;
+  --color-green-wash: #0d211a;
+  --color-amber: #ffb340;
+  --color-amber-wash: #241a0d;
+  --color-red: #ff7070;
+  --color-red-wash: #26130f;
 
   /* ══════════════════════════════════════════════════════════════════════
      Night register: the games wing.
@@ -140,8 +157,15 @@
   --spacing-shell: 1180px;
 
   /* ── Layering: earned only where something is physically stacked ─────── */
-  --shadow-ticket: 0 1px 2px rgb(17 19 21 / 0.04), 0 12px 28px -14px rgb(17 19 21 / 0.16);
-  --shadow-lift: 0 1px 1px rgb(17 19 21 / 0.05), 0 6px 16px -10px rgb(17 19 21 / 0.2);
+  /* On a dark ground a black shadow is invisible, so a raised surface is lifted
+     by a hairline of light along its top edge and a deeper, wider shadow
+     beneath — which is how depth actually works when the light is above you. */
+  --shadow-ticket:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.05), 0 1px 2px rgb(0 0 0 / 0.5),
+    0 18px 40px -20px rgb(0 0 0 / 0.75);
+  --shadow-lift:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.04), 0 1px 2px rgb(0 0 0 / 0.4),
+    0 10px 24px -14px rgb(0 0 0 / 0.6);
   --shadow-night: 0 1px 2px rgb(0 0 0 / 0.5), 0 18px 40px -20px rgb(0 0 0 / 0.7);
 
   /* ── Motion: 150–220ms, restrained easing ────────────────────────────── */
@@ -215,7 +239,7 @@
 
   ::selection {
     background: var(--color-blue);
-    color: var(--color-white);
+    color: var(--color-paper);
   }
 
   /* Inputs inherit type rather than reverting to the UA stack */

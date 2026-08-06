@@ -69,7 +69,7 @@ export function CopyValue({ value, label, className, compact, tone = "day" }: Co
             "transition-colors duration-[var(--duration-fast)] active:translate-y-px",
             night
               ? "border-night-rule-strong bg-night-raised text-night-text hover:border-night-muted"
-              : "border-rule-strong bg-white text-ink hover:bg-paper-sunk",
+              : "border-rule-strong bg-surface text-ink hover:bg-paper-sunk",
           )}
         >
           {copied ? "Copied" : `Copy ${label.toLowerCase()}`}

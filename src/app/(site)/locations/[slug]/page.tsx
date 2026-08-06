@@ -201,7 +201,7 @@ export default async function LocationPage({
         </div>
 
         <div className="md:col-span-4 md:col-start-9">
-          <div className="rounded-[10px] border border-rule-strong bg-white p-5">
+          <div className="rounded-[10px] border border-rule-strong bg-surface p-5">
             <h2 className="label-mono text-ink-faint">Opening hours</h2>
             <dl className="mt-3">
               {hours.map((row) => {

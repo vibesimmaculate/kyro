@@ -24,7 +24,7 @@ export function OrderSummary({ quote, locationSlug }: OrderSummaryProps) {
   return (
     <aside
       aria-label="Your exchange"
-      className="rounded-[10px] border border-rule-strong bg-white"
+      className="rounded-[10px] border border-rule-strong bg-surface"
     >
       <div className="flex items-baseline justify-between gap-3 border-b border-rule px-4 py-3">
         <h2 className="label-mono text-ink-faint">Your exchange</h2>

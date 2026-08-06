@@ -55,7 +55,7 @@ export function DirectionSwitch({
                   ? "bg-night-sunk text-night-text"
                   : "bg-night-raised text-night-muted hover:text-night-text"
                 : selected
-                  ? "bg-white text-ink"
+                  ? "bg-surface text-ink"
                   : "bg-paper-sunk text-ink-muted hover:text-ink",
             )}
           >

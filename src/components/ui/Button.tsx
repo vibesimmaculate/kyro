@@ -27,12 +27,12 @@ const SIZES: Record<ButtonSize, string> = {
 };
 
 const DAY: Record<ButtonVariant, string> = {
-  primary: "bg-blue text-white border border-blue hover:bg-blue-press hover:border-blue-press",
+  primary: "bg-blue text-paper border border-blue hover:bg-blue-press hover:border-blue-press",
   secondary:
-    "bg-white text-ink border border-rule-strong hover:bg-paper-sunk hover:border-ink/40",
+    "bg-surface text-ink border border-rule-strong hover:bg-paper-sunk hover:border-ink/40",
   quiet:
     "bg-transparent text-ink border border-transparent hover:bg-paper-sunk hover:border-rule",
-  danger: "bg-red text-white border border-red hover:brightness-95",
+  danger: "bg-red text-paper border border-red hover:brightness-95",
 };
 
 const NIGHT: Record<ButtonVariant, string> = {

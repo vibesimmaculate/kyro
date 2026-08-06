@@ -100,7 +100,7 @@ export default async function OrderPage({
 
           {/* Crypto → cash: the address is the action. */}
           {!cashToCrypto && order.depositAddress ? (
-            <section className="mt-8 rounded-[10px] border border-rule-strong bg-white p-5">
+            <section className="mt-8 rounded-[10px] border border-rule-strong bg-surface p-5">
               <h2 className="label-mono text-ink-faint">Send exactly this</h2>
               <AmountReadout amount={give} size="md" className="mt-2" />
               <p className="mt-3 text-small text-ink-muted">
@@ -130,7 +130,7 @@ export default async function OrderPage({
           </section>
 
           {order.txHash ? (
-            <section className="mt-8 rounded-[10px] border border-rule bg-white p-5">
+            <section className="mt-8 rounded-[10px] border border-rule bg-surface p-5">
               <h2 className="label-mono text-ink-faint">Transaction</h2>
               <CopyValue value={order.txHash} label="Transaction ID" className="mt-3" />
             </section>
@@ -142,7 +142,7 @@ export default async function OrderPage({
           <div className="lg:sticky lg:top-8">
             <section
               aria-label="Order ticket"
-              className="rounded-[10px] border border-rule-strong bg-white shadow-[var(--shadow-ticket)]"
+              className="rounded-[10px] border border-rule-strong bg-surface shadow-[var(--shadow-ticket)]"
             >
               <div className="border-b border-rule px-5 py-4">
                 <p className="label-mono text-ink-faint">Order code</p>

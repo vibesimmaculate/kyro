@@ -67,7 +67,7 @@ export function OperatorOrderRow({
               type="submit"
               disabled={pending}
               className={cn(
-                "tap inline-flex items-center rounded-[6px] border border-rule-strong bg-white px-3",
+                "tap inline-flex items-center rounded-[6px] border border-rule-strong bg-surface px-3",
                 "text-small transition-colors hover:bg-paper-sunk active:translate-y-px",
                 "disabled:opacity-50",
               )}

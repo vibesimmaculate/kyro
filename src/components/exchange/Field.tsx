@@ -36,7 +36,7 @@ export function Field({ id, label, hint, error, children, className }: FieldProp
 }
 
 export const inputClass = cn(
-  "tap w-full rounded-[8px] border border-rule-strong bg-white px-3 py-2.5",
+  "tap w-full rounded-[8px] border border-rule-strong bg-surface px-3 py-2.5",
   "text-body transition-colors duration-[var(--duration-fast)]",
   "placeholder:text-ink-faint",
   "focus:border-blue focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue",

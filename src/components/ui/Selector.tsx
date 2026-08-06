@@ -85,7 +85,7 @@ export function Selector({
           size === "lg" ? "min-h-[3.25rem] text-[1.0625rem]" : "min-h-11 text-[0.9375rem]",
           night
             ? "border-night-rule-strong bg-night-raised text-night-text hover:border-night-muted data-[state=open]:border-night-blue"
-            : "border-rule-strong bg-white text-ink hover:border-ink/40 data-[state=open]:border-blue",
+            : "border-rule-strong bg-surface text-ink hover:border-ink/40 data-[state=open]:border-blue",
           display === "code" && "font-mono font-medium tracking-[0.01em]",
           className,
         )}
@@ -120,7 +120,7 @@ export function Selector({
             "data-[state=open]:animate-[kyro-panel-in_var(--duration-base)_var(--ease-out-quiet)]",
             night
               ? "border-night-rule-strong bg-night-raised text-night-text shadow-[var(--shadow-night)]"
-              : "border-rule-strong bg-white text-ink shadow-[var(--shadow-lift)]",
+              : "border-rule-strong bg-surface text-ink shadow-[var(--shadow-lift)]",
           )}
         >
           <Select.ScrollUpButton

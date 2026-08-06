@@ -121,8 +121,8 @@ export function LocationMap({
           <path
             key={country.code}
             d={pathFor(country.rings)}
-            fill="var(--color-paper)"
-            stroke="var(--color-rule-faint)"
+            fill="var(--color-paper-sunk)"
+            stroke="var(--color-rule)"
             strokeWidth="1"
             strokeLinejoin="round"
           />
@@ -134,7 +134,7 @@ export function LocationMap({
             <path
               key={country.code}
               d={pathFor(country.rings)}
-              fill={active ? "var(--color-white)" : "var(--color-paper)"}
+              fill={active ? "var(--color-surface-strong)" : "var(--color-paper-edge)"}
               stroke={active ? "var(--color-rule-strong)" : "var(--color-rule)"}
               strokeWidth={active ? 1.4 : 1}
               strokeLinejoin="round"
@@ -170,7 +170,7 @@ export function LocationMap({
                 cy={y}
                 r={isActive ? 5.5 : 4.5}
                 fill={isActive ? "var(--color-blue)" : "var(--color-ink)"}
-                stroke="var(--color-white)"
+                stroke="var(--color-paper)"
                 strokeWidth="1.6"
               />
               <text
@@ -178,7 +178,7 @@ export function LocationMap({
                 y={labelY}
                 textAnchor={anchor}
                 className="fill-ink text-[12px] font-medium"
-                style={{ paintOrder: "stroke", stroke: "var(--color-white)", strokeWidth: 3.5 }}
+                style={{ paintOrder: "stroke", stroke: "var(--color-paper)", strokeWidth: 3.5 }}
               >
                 {city}
                 {entry.items.length > 1 ? ` (${entry.items.length})` : ""}
