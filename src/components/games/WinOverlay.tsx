@@ -70,12 +70,16 @@ export function WinOverlay({
   // Between six and twenty-eight sparks, by how much was won.
   const sparkCount = Math.min(28, 6 + Math.round(Math.log2(Math.max(1, multiple)) * 5));
 
+  // Anchored to the bottom rather than the middle, and a strip rather than a
+  // card. Centred, it covered the coin, the tiles and the curve — the board
+  // announced a win by hiding the thing that had just won, which left the
+  // player reading a number instead of seeing what happened.
   return (
     <div
       role="status"
       aria-live="polite"
       className={cn(
-        "pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center",
+        "pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-end pb-3 sm:pb-5",
         className,
       )}
     >
@@ -114,14 +118,14 @@ export function WinOverlay({
 
       <div
         className={cn(
-          "relative flex flex-col items-center rounded-[14px] px-8 py-5",
-          "bg-night-sunk/85 backdrop-blur-[2px]",
+          "relative flex items-baseline gap-3 rounded-[12px] px-5 py-3 sm:gap-4 sm:px-6",
+          "bg-night-sunk/88 backdrop-blur-[3px]",
           "animate-[kyro-pop_var(--duration-slow)_var(--ease-out-quiet)]",
           huge ? "glow-win" : big ? "glow-win" : "",
         )}
         style={{ boxShadow: big ? undefined : "0 0 0 1px var(--color-night-rule-strong)" }}
       >
-        <span className="label-mono text-night-muted">
+        <span className="label-mono flex-none text-night-muted">
           {huge ? "Huge win" : big ? "Big win" : "Win"}
         </span>
 
@@ -130,12 +134,12 @@ export function WinOverlay({
           suffix="×"
           durationMs={huge ? 900 : 520}
           className={cn(
-            "mt-1 text-[clamp(2.5rem,9vw,4rem)] leading-none font-medium",
+            "flex-none text-[clamp(1.75rem,5vw,2.5rem)] leading-none font-medium",
             huge ? "text-night-gold" : "text-night-green",
           )}
         />
 
-        <span className="figure-num mt-2 text-[1.0625rem] text-night-text">
+        <span className="figure-num flex-none text-[1.0625rem] text-night-text">
           {formatCrypto(cryptoAmount(payout, asset))}
         </span>
       </div>

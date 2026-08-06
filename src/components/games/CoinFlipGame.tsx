@@ -20,10 +20,13 @@ import { playCoinFlipRound, type RoundResult } from "@/server/games/play";
 /**
  * Coin Flip.
  *
- * The coin actually turns — five full rotations on the Y axis, rising and
- * falling as it goes, decelerating into the landing. The result exists the
- * moment the stake is taken; the spin is there because a coin that resolves
- * instantly is not a coin flip, it is a database read.
+ * The coin actually turns: six full rotations end over end, rising and falling
+ * through the toss, decelerating into the landing. Both faces exist in the DOM
+ * throughout, back to back, so the far side genuinely passes on every rotation
+ * rather than a label swapping at the halfway point.
+ *
+ * The result exists the moment the stake is taken. The toss is there because a
+ * coin flip that resolves instantly is not a coin flip, it is a database read.
  *
  * Nine hundred milliseconds: long enough to be a moment, short enough to do
  * fifty times.
@@ -109,9 +112,10 @@ export function CoinFlipGame({
   const won = settled && result?.ok ? result.outcome?.won === true : false;
   const busy = pending || spinning;
 
-  // Mid-spin the coin shows the side it will land on, so the last half-turn
-  // reads as the coin settling rather than as a value swapping in.
-  const face = landed ?? (spinning ? pick : undefined);
+  // Both faces are always drawn, so all the toss needs to know is which one
+  // has to be looking at you when it stops. Before the result exists that is
+  // the side you called, which is also the one the idle coin shows.
+  const landsOn: CoinSide = landed ?? pick;
 
   return (
     <GameLayout
@@ -154,34 +158,29 @@ export function CoinFlipGame({
             )
           }
         >
-          <div className="flex min-h-[19rem] items-center justify-center py-6 [perspective:900px]">
+          <div className="flex min-h-[21rem] items-center justify-center py-8 [perspective:1100px]">
             <div
               key={result?.roundId ?? "idle"}
-              className={cn(
-                "relative flex h-40 w-40 items-center justify-center rounded-full border-[3px]",
-                "[transform-style:preserve-3d] transition-colors duration-[var(--duration-slow)]",
-                !settled
-                  ? "border-night-rule-strong bg-night-lifted text-night-muted"
-                  : won
-                    ? "glow-win border-night-green bg-night-green/15 text-night-green"
-                    : "glow-lose border-night-red bg-night-red/12 text-night-red",
-              )}
+              className="relative h-44 w-44 [transform-style:preserve-3d] motion-reduce:!animate-none"
               style={
                 spinning
-                  ? { animation: `kyro-coin-spin ${SPIN_MS}ms cubic-bezier(0.2,0.7,0.3,1)` }
-                  : settled
-                    ? { animation: "kyro-pop var(--duration-slow) var(--ease-out-quiet)" }
-                    : undefined
+                  ? {
+                      // The half-turn that decides which face ends up looking
+                      // at you. Same keyframes either way.
+                      ["--land" as string]: landsOn === "tails" ? "180deg" : "0deg",
+                      animation: `kyro-coin-toss ${SPIN_MS}ms cubic-bezier(0.16,0.72,0.24,1) forwards`,
+                    }
+                  : {
+                      transform:
+                        landsOn === "tails" ? "rotateX(180deg)" : "rotateX(0deg)",
+                      animation: settled
+                        ? undefined
+                        : "kyro-coin-idle 6s ease-in-out infinite",
+                    }
               }
             >
-              {/* A rim, so the disc has thickness rather than being a circle. */}
-              <span
-                aria-hidden="true"
-                className="absolute inset-[7px] rounded-full border border-current opacity-30"
-              />
-              <span className="label-mono text-[0.8125rem] tracking-[0.2em]">
-                {face ? face.toUpperCase() : "—"}
-              </span>
+              <CoinFace side="heads" tone={settled ? (won ? "win" : "lose") : "idle"} />
+              <CoinFace side="tails" tone={settled ? (won ? "win" : "lose") : "idle"} />
             </div>
           </div>
         </GameBoard>
@@ -237,5 +236,96 @@ export function CoinFlipGame({
         </BetPanel>
       }
     />
+  );
+}
+
+/**
+ * One face of the coin.
+ *
+ * Both faces exist in the DOM at all times, back to back, with the tails face
+ * turned a half-turn on X and `backface-visibility` hiding whichever is facing
+ * away. That is what makes the flip a flip rather than a spinning card that
+ * swaps its label at the halfway point — you see the far side pass, which is
+ * the whole reason a coin toss is watchable.
+ *
+ * The metal is three layers: a conic gradient for the brushed circumference, a
+ * radial one for the dome, and an inset ring for the milled edge. On the paper
+ * side of this product that would be three gradients too many; in the games
+ * register a coin is a material, and a flat disc with a word on it was reading
+ * as a placeholder.
+ */
+function CoinFace({
+  side,
+  tone,
+}: {
+  readonly side: CoinSide;
+  readonly tone: "idle" | "win" | "lose";
+}) {
+  const gold = side === "heads";
+
+  return (
+    <div
+      aria-hidden="true"
+      className={cn(
+        "absolute inset-0 grid place-items-center rounded-full [backface-visibility:hidden]",
+        side === "tails" && "[transform:rotateX(180deg)]",
+      )}
+      style={{
+        background: gold
+          ? "conic-gradient(from 210deg, #7a5a1c, #f2d488, #b98c2a, #ffeab8, #8a641f, #e8c876, #7a5a1c)"
+          : "conic-gradient(from 210deg, #3a4250, #aeb8c6, #58616f, #dfe6ef, #454e5c, #9aa4b2, #3a4250)",
+        // The result glow is composed into this rather than applied as a
+        // class: a `glow-*` utility sets box-shadow, and so does the metal, so
+        // whichever lost the cascade simply vanished.
+        boxShadow: [
+          gold
+            ? "inset 0 0 0 6px rgba(255,235,180,0.16)"
+            : "inset 0 0 0 6px rgba(226,236,248,0.14)",
+          "inset 0 6px 18px rgba(0,0,0,0.5)",
+          "0 18px 40px -18px rgba(0,0,0,0.9)",
+          tone === "win"
+            ? "0 0 0 3px var(--color-night-green), 0 0 46px -4px var(--color-night-green)"
+            : tone === "lose"
+              ? "0 0 0 3px var(--color-night-red), 0 0 38px -6px var(--color-night-red)"
+              : "0 0 0 1px rgba(255,255,255,0.06)",
+        ].join(", "),
+      }}
+    >
+      {/* The dome: a highlight up and to the left, which is the only cue that
+          says "this is a solid object" rather than "this is a filled circle". */}
+      <span
+        className="absolute inset-0 rounded-full"
+        style={{
+          background:
+            "radial-gradient(circle at 32% 26%, rgba(255,255,255,0.55), rgba(255,255,255,0.06) 42%, rgba(0,0,0,0.34) 78%)",
+        }}
+      />
+
+      {/* The milled edge. */}
+      <span
+        className="absolute inset-[9px] rounded-full border"
+        style={{ borderColor: gold ? "rgba(60,42,10,0.5)" : "rgba(20,26,34,0.5)" }}
+      />
+
+      <span className="relative grid place-items-center gap-3.5">
+        {gold ? (
+          <span
+            className="block h-7 w-7 rotate-45 rounded-[3px]"
+            style={{ background: "#2c1f06", boxShadow: "inset 0 2px 4px rgba(255,240,200,0.35)" }}
+          />
+        ) : (
+          <span
+            className="block h-7 w-7 rounded-full border-[5px]"
+            style={{ borderColor: "#161b23", boxShadow: "inset 0 2px 4px rgba(230,240,255,0.3)" }}
+          />
+        )}
+        <span
+          className="label-mono text-[0.6875rem] tracking-[0.22em]"
+          style={{ color: gold ? "#3a2a08" : "#171c24" }}
+        >
+          {side === "heads" ? "HEADS" : "TAILS"}
+        </span>
+      </span>
+    </div>
   );
 }
