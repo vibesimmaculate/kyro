@@ -117,7 +117,7 @@ export function buildQuote(
     gross = convertCryptoToFiat(given, rate);
   }
 
-  // Counter limits are always expressed against the cash side of the trade,
+  // Pickup-point limits are always expressed against the cash side of the trade,
   // whichever way round it runs.
   if (gross.minor < minimum.minor) {
     issues.push({
@@ -125,8 +125,8 @@ export function buildQuote(
       field: "give",
       message:
         direction === "cash-to-crypto"
-          ? `The counter starts at ${formatMoney(minimum)}.`
-          : `That is worth less than ${formatMoney(minimum)}, the counter minimum.`,
+          ? `Pickup points start at ${formatMoney(minimum)}.`
+          : `That is worth less than ${formatMoney(minimum)}, the pickup-point minimum.`,
     });
   }
   if (gross.minor > maximum.minor) {

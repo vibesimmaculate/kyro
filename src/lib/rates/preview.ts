@@ -200,7 +200,7 @@ export function nextRateChangeAt(at: number): number {
   return (Math.floor(at / RATE_BUCKET_MS) + 1) * RATE_BUCKET_MS;
 }
 
-/** Every pair the counter can quote, for tests and for the sitemap of options. */
+/** Every pair the pickup point can quote, for tests and for the sitemap of options. */
 export function allPairs(): Array<{ fiat: FiatCode; asset: CryptoCode }> {
   const pairs: Array<{ fiat: FiatCode; asset: CryptoCode }> = [];
   for (const fiat of FIAT_CODES) {

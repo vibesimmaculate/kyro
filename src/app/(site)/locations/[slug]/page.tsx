@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { LocationPlot } from "@/components/locations/LocationPlot";
+import { LocationMap } from "@/components/locations/LocationMap";
 import { ButtonLink } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import {
   availabilityOf,
   COUNTRIES,
-  counterClock,
+  pickupClock,
   LOCATIONS,
   sampleLocationProvider,
   summariseHours,
@@ -37,7 +37,7 @@ export async function generateMetadata({
   return {
     alternates: { canonical: `/locations/${location.slug}` },
     title: `${location.city} — ${location.branch}`,
-    description: `KYRO counter at ${location.street}, ${location.city}. Opening hours, supported exchange directions and cash limits.`,
+    description: `KYRO pickup point at ${location.street}, ${location.city}. Opening hours, supported exchange directions and cash limits.`,
   };
 }
 
@@ -57,7 +57,7 @@ export default async function LocationPage({
   const location = sampleLocationProvider.bySlug(slug);
   if (!location) notFound();
 
-  const clock = counterClock(requestDate());
+  const clock = pickupClock(requestDate());
   const availability = availabilityOf(location, clock);
   const hours = summariseHours(location.hours);
   const country = COUNTRIES[location.country];
@@ -160,7 +160,7 @@ export default async function LocationPage({
               <dt className="label-mono text-ink-faint">Cash on hand</dt>
               <dd className="mt-1.5 text-body">
                 {location.cashOutCeiling === "0" ? (
-                  <span className="text-ink-muted">No cash payouts at this counter</span>
+                  <span className="text-ink-muted">No cash payouts at this pickup point</span>
                 ) : (
                   <>
                     <span className="figure-num">
@@ -239,7 +239,7 @@ export default async function LocationPage({
             </ButtonLink>
           </div>
 
-          <LocationPlot
+          <LocationMap
             locations={LOCATIONS}
             activeSlug={location.slug}
             className="mt-6"
@@ -250,7 +250,7 @@ export default async function LocationPage({
       {nearby.length > 0 ? (
         <section className="mt-14 border-t border-rule pt-8" aria-labelledby="nearby">
           <h2 id="nearby" className="text-subhead font-medium">
-            Other counters in {country.name}
+            Other pickup points in {country.name}
           </h2>
           <ul className="mt-4 grid gap-px bg-rule sm:grid-cols-3">
             {nearby.map((other) => {

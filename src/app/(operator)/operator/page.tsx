@@ -22,7 +22,7 @@ export const metadata: Metadata = {
 };
 
 /**
- * The counter's own screen.
+ * The pickup point's own screen.
  *
  * A third visual register: dense mono tables, no polish, nothing decorative.
  * This is a tool for someone working a shift, and it should read like a
@@ -38,7 +38,7 @@ export default async function OperatorPage() {
       <div className="shell py-20">
         <h1 className="text-title">Not authorised.</h1>
         <p className="mt-3 max-w-[52ch] text-lead text-ink-muted">
-          This console is for counter staff. If you should have access, an administrator
+          This console is for pickup point staff. If you should have access, an administrator
           adds you to the staff table.
         </p>
         <Link href="/" className="mt-6 inline-flex text-small underline underline-offset-4">
@@ -139,7 +139,7 @@ export default async function OperatorPage() {
                     Receives
                   </th>
                   <th scope="col" className="label-mono py-2 pe-4 text-start text-ink-faint">
-                    Counter
+                    Pickup point
                   </th>
                   <th scope="col" className="label-mono py-2 pe-4 text-start text-ink-faint">
                     Stage

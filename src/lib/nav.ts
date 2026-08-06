@@ -5,7 +5,7 @@ export interface NavItem {
   readonly hint?: string;
 }
 
-/** The counter. Six links, in the order someone actually needs them. */
+/** The exchange side. Six links, in the order someone actually needs them. */
 export const PRIMARY_NAV: readonly NavItem[] = [
   { href: "/exchange", label: "Exchange", hint: "Start a cash ↔ crypto order" },
   { href: "/prices", label: "Prices", hint: "What the market is doing right now" },

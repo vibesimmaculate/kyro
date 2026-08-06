@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { CRYPTO_CODES } from "@/lib/money/currencies";
 import { LOCATIONS } from "@/fixtures/locations";
 import { absolute } from "@/lib/seo/site";
 
@@ -19,6 +20,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/fees", priority: 0.9, frequency: "weekly" },
     { path: "/locations", priority: 0.8, frequency: "weekly" },
     { path: "/prices", priority: 0.8, frequency: "hourly" },
+    ...CRYPTO_CODES.map((asset) => ({
+      path: `/prices/${asset.toLowerCase()}`,
+      priority: 0.6,
+      frequency: "hourly" as const,
+    })),
     { path: "/how-it-works", priority: 0.7, frequency: "monthly" },
     { path: "/help", priority: 0.7, frequency: "monthly" },
     { path: "/track", priority: 0.5, frequency: "monthly" },

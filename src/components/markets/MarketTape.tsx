@@ -43,7 +43,7 @@ export async function MarketTape({ className }: { readonly className?: string })
             return (
               <li key={row.asset} className="min-w-0 flex-none snap-start">
                 <Link
-                  href={`/exchange?asset=${row.asset}`}
+                  href={`/prices/${row.asset.toLowerCase()}`}
                   className={cn(
                     "group flex items-center gap-2.5 rounded-[7px] px-3 py-1.5 xl:gap-3",
                     "transition-colors duration-[var(--duration-fast)] hover:bg-paper",

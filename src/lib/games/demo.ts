@@ -18,6 +18,7 @@
 
 import {
   COIN_FLIP_MULTIPLIER,
+  MULTIPLIER_SCALE,
   MINES_TILES,
   TOWER_FLOORS,
   TOWER_RULES,
@@ -196,20 +197,6 @@ export function demoDice(
     stake,
     result.won ? diceMultiplier(chance) : 0,
     { roll: result.roll, target: result.target, won: result.won },
-    nonce,
-  );
-}
-
-export function demoCrash(stake: bigint, target: number): DemoRoundResult {
-  if (!stakeDemo(stake)) return INSUFFICIENT;
-  const { serverSeed, clientSeed } = seeds();
-  const nonce = nextNonce();
-  const { crashPoint: point } = crashPoint(serverSeed, clientSeed, nonce);
-  const survived = point >= target;
-  return settle(
-    stake,
-    survived ? target : 0,
-    { crashPoint: point, target, survived },
     nonce,
   );
 }
@@ -459,3 +446,96 @@ export function runDemoTower(): DemoRunner {
 }
 
 export const TOWER_DIFFICULTIES = Object.keys(TOWER_RULES) as TowerDifficulty[];
+
+/* ── Crash ─────────────────────────────────────────────────────────────── */
+
+/**
+ * Crash in demo mode.
+ *
+ * The stake leaves when the round opens and the payout arrives when the player
+ * taps out, which mirrors the server exactly. The crash point is held here
+ * rather than on a server, so demo mode cannot be provably fair — the banner
+ * says so — but the shape of the round, and therefore the feel of the decision,
+ * is identical.
+ */
+export interface CrashDemoState {
+  readonly ok: boolean;
+  readonly error?: string;
+  readonly roundId?: string;
+  readonly startedAt?: number;
+  readonly target?: number;
+  readonly running?: boolean;
+  readonly busted?: boolean;
+  readonly finished?: boolean;
+  readonly crashPoint?: number;
+  readonly multiplier?: number;
+  readonly payout?: string;
+  readonly balance?: string;
+}
+
+export interface CrashDemoRunner {
+  open(options: { stake: bigint; target: number }): CrashDemoState;
+  /** `reached` is the multiplier the curve had climbed to when the player left. */
+  settle(reached: number): CrashDemoState;
+  /** The committed crash point. For the animation only, never for the readout. */
+  breaksAt(): number;
+}
+
+export function createCrashDemo(): CrashDemoRunner {
+  let stake = 0n;
+  let target = 0;
+  let breaks = MULTIPLIER_SCALE;
+  let open = false;
+  let id = "";
+
+  return {
+    open(options) {
+      if (!stakeDemo(options.stake)) return INSUFFICIENT as CrashDemoState;
+      const { serverSeed, clientSeed } = seeds();
+      const nonce = nextNonce();
+      stake = options.stake;
+      target = options.target;
+      breaks = crashPoint(serverSeed, clientSeed, nonce).crashPoint;
+      open = true;
+      id = `demo-${nonce}`;
+      return {
+        ok: true,
+        roundId: id,
+        startedAt: Date.now(),
+        target,
+        running: true,
+        balance: String(demoBalance()),
+      };
+    },
+
+    settle(reached) {
+      if (!open) return { ok: false, error: "That round is already finished." };
+      open = false;
+
+      // Same rule as the server: a target that was reached counts, whatever
+      // else happened afterwards.
+      const targetHit = target > MULTIPLIER_SCALE && reached >= target;
+      const settledAt = targetHit ? Math.min(target, reached) : reached;
+      const survived = settledAt < breaks;
+      const multiplier = survived ? settledAt : 0;
+      const payout = survived ? payoutFor(stake, multiplier) : 0n;
+      const balance = survived ? payDemo(payout) : demoBalance();
+
+      return {
+        ok: true,
+        roundId: id,
+        finished: true,
+        busted: !survived,
+        crashPoint: breaks,
+        multiplier,
+        target,
+        payout: String(payout),
+        balance: String(balance),
+      };
+    },
+
+    breaksAt() {
+      return breaks;
+    },
+  };
+}

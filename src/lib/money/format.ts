@@ -220,7 +220,7 @@ export function countdownLabel(msRemaining: number): string {
   return `${parts.join(" ")} remaining on this quote`;
 }
 
-/** Order codes are read aloud at a counter, so they are grouped: KYR-4H2N-8QX1 */
+/** Order codes are read aloud at a pickup point, so they are grouped: KYR-4H2N-8QX1 */
 export function formatReference(reference: string): string {
   return reference.toUpperCase();
 }

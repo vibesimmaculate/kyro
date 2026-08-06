@@ -3,14 +3,14 @@ import { ExchangeCalculator } from "@/components/exchange/ExchangeCalculator";
 import { FeeReceipt } from "@/components/exchange/FeeReceipt";
 import { StepSequence } from "@/components/exchange/StepSequence";
 import { SupportAccordion } from "@/components/help/SupportAccordion";
-import { LocationPlot } from "@/components/locations/LocationPlot";
+import { LocationMap } from "@/components/locations/LocationMap";
 import { LocationRow } from "@/components/locations/LocationRow";
 import { MarketTape } from "@/components/markets/MarketTape";
 import { OrderTimeline } from "@/components/orders/OrderTimeline";
 import { Section } from "@/components/site/Section";
 import { ButtonLink } from "@/components/ui/Button";
 import { FAQ_ITEMS } from "@/content/faq";
-import { counterClock, LOCATIONS } from "@/fixtures/locations";
+import { pickupClock, LOCATIONS } from "@/fixtures/locations";
 import { buildQuote } from "@/lib/quote/engine";
 import { JsonLd } from "@/components/seo/JsonLd";
 import {
@@ -39,13 +39,13 @@ const STEPS = [
   },
   {
     title: "Choose a location",
-    body: "Pick the counter you want to use. You will see its hours, which directions it handles and how much cash it can pay out without notice.",
+    body: "Pick the pickup point you want to use. You will see its hours, which directions it handles and how much cash it can pay out without notice.",
     detail: "Your order code arrives straight away.",
   },
   {
     title: "Pay or collect your cash",
     body: "Bring your ID and order code. Hand over the cash and the crypto is sent, or send the crypto and take the cash. Same fee either way.",
-    detail: "Nothing is charged until you are at the counter.",
+    detail: "Nothing is charged until you are at the pickup point.",
   },
 ];
 
@@ -54,7 +54,7 @@ export default async function HomePage() {
   // calculator and the figure inside it can never disagree about a price.
   const anchors = await liveAnchors();
   const now = requestNow();
-  const clock = counterClock(new Date(now));
+  const clock = pickupClock(new Date(now));
 
   // The worked example on this page is a real quote from the same engine that
   // prices a real order — not a screenshot and not hand-written numbers.
@@ -99,7 +99,7 @@ export default async function HomePage() {
             <h1 className="mt-5 text-display">Cash to crypto. Crypto to cash.</h1>
 
             <p className="mt-5 max-w-[40ch] text-lead text-ink-muted">
-              Walk into a counter in Sarajevo, Belgrade or Zagreb, hand over cash and
+              Walk into a pickup point in Sarajevo, Belgrade or Zagreb, hand over cash and
               leave with crypto. Or the other way round. See exactly what you&rsquo;ll
               get before you go.
             </p>
@@ -152,11 +152,11 @@ export default async function HomePage() {
       <Section
         id="locations"
         index="02"
-        title="Counters across the region."
+        title="Pickup points across the region."
         lead="Every branch lists its hours, the directions it handles and how much cash it keeps on hand."
         aside={
           <div className="space-y-4">
-            <LocationPlot locations={LOCATIONS} />
+            <LocationMap locations={LOCATIONS} linked={false} />
             <ButtonLink href="/locations" variant="secondary" size="sm">
               All locations
             </ButtonLink>
@@ -165,7 +165,7 @@ export default async function HomePage() {
       >
         <div className="flex items-baseline justify-between gap-4 border-b border-rule pb-2">
           <p className="label-mono text-ink-faint">Sample locations</p>
-          <p className="label-mono text-ink-faint">{LOCATIONS.length} counters</p>
+          <p className="label-mono text-ink-faint">{LOCATIONS.length} pickup points</p>
         </div>
         <ul>
           {featured.map((location) => (
@@ -185,7 +185,7 @@ export default async function HomePage() {
         lead={
           <>
             Four percent of the cash side. No spread in the rate, nothing added at the
-            counter, no surprises.
+            pickup point, no surprises.
           </>
         }
         aside={
@@ -241,14 +241,14 @@ export default async function HomePage() {
               {
                 key: "created",
                 title: "Order created",
-                body: "Your rate is locked and the counter has been told to expect you.",
+                body: "Your rate is locked and the pickup point has been told to expect you.",
                 state: "done",
                 at: "11:02",
               },
               {
                 key: "identity",
                 title: "Identity confirmed",
-                body: "ID checked at the counter against the name on the order.",
+                body: "ID checked at the pickup point against the name on the order.",
                 state: "done",
                 at: "11:41",
               },
@@ -261,7 +261,7 @@ export default async function HomePage() {
               {
                 key: "cash",
                 title: "Cash received",
-                body: "The counter has the money and the transfer is authorised.",
+                body: "The pickup point has the money and the transfer is authorised.",
                 state: "upcoming",
               },
               {

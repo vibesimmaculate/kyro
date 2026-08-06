@@ -85,7 +85,7 @@ export function faqSchema(
 }
 
 /**
- * A counter, as a place you can walk into.
+ * A pickup point, as a place you can walk into.
  *
  * Marked `isAccessibleForFree` false and carrying its real opening hours. These
  * are sample branches, which is stated on every page that renders them — the
@@ -146,12 +146,12 @@ export function breadcrumbSchema(trail: ReadonlyArray<{ name: string; path: stri
   };
 }
 
-/** Every counter as one list, for the locations index. */
+/** Every pickup point as one list, for the locations index. */
 export function locationListSchema(): Json {
   return {
     "@type": "ItemList",
     "@id": absolute("/locations#list"),
-    name: `${SITE.name} counters`,
+    name: `${SITE.name} pickup points`,
     numberOfItems: LOCATIONS.length,
     itemListElement: LOCATIONS.map((location, index) => ({
       "@type": "ListItem",

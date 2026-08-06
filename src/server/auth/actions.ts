@@ -10,7 +10,7 @@ import { supabaseServer, requireUser } from "@/server/supabase/server";
  *
  * Only the games need one. The exchange stays open to anyone with an order
  * code, which is the promise the whole product is built around — a login wall
- * in front of a currency counter would be absurd.
+ * in front of a currency pickup point would be absurd.
  */
 
 export interface AuthState {

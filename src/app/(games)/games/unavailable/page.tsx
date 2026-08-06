@@ -20,7 +20,7 @@ export default function UnavailablePage() {
           negotiable and there is no version of the page that lets you through.
         </p>
         <p className="mt-4 text-body text-night-muted">
-          The exchange is a different matter — it is a currency counter, not a gaming
+          The exchange is a different matter — it is a currency pickup point, not a gaming
           product, and it is open as normal.
         </p>
 

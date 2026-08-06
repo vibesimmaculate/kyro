@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "/help" },
   title: "Help",
   description:
-    "How the 4% fee works, how long an exchange takes, what to bring to the counter, and how to reach a person.",
+    "How the 4% fee works, how long an exchange takes, what to bring to the pickup point, and how to reach a person.",
 };
 
 export default function HelpPage() {
@@ -55,15 +55,15 @@ export default function HelpPage() {
           {[
             {
               t: "You sent to the wrong address",
-              b: "Nobody can reverse a blockchain transfer — not KYRO, not the network, not the wallet you used. This is why the review step prints the address in full and asks you to check it. If the transfer has not been broadcast yet, tell the counter and it can be changed.",
+              b: "Nobody can reverse a blockchain transfer — not KYRO, not the network, not the wallet you used. This is why the review step prints the address in full and asks you to check it. If the transfer has not been broadcast yet, tell the pickup point and it can be changed.",
             },
             {
               t: "You sent on the wrong network",
               b: "Tell us before you send if you are unsure. If it has already happened, contact us with the transaction ID: recovery is sometimes possible and sometimes not, and we will tell you honestly which it is rather than keep you waiting.",
             },
             {
-              t: "Your quote expired on the way to the counter",
-              b: "Nothing is lost. Quotes hold for two minutes on screen, but an order locks its rate when you confirm it. If an order itself expires before you arrive, the counter will re-quote you at the current rate and you can walk away if you do not like it.",
+              t: "Your quote expired on the way to the pickup point",
+              b: "Nothing is lost. Quotes hold for two minutes on screen, but an order locks its rate when you confirm it. If an order itself expires before you arrive, the pickup point will re-quote you at the current rate and you can walk away if you do not like it.",
             },
           ].map((item) => (
             <div key={item.t} className="border-t border-rule pt-4">
@@ -97,13 +97,13 @@ export default function HelpPage() {
           </div>
 
           <div className="rounded-[10px] border border-rule bg-paper-sunk p-5">
-            <h3 className="label-mono text-ink-faint">At the counter</h3>
+            <h3 className="label-mono text-ink-faint">At the pickup point</h3>
             <p className="mt-2 text-body">
               Every branch can answer questions about an order in person.
             </p>
             <p className="mt-2 text-small text-ink-muted">
               <Link href="/locations" className="underline underline-offset-4">
-                Find your nearest counter
+                Find your nearest pickup point
               </Link>{" "}
               and its opening hours.
             </p>

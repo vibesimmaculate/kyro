@@ -9,7 +9,7 @@ export type ButtonTone = "day" | "night";
 /**
  * Buttons are rectangles with an 8px radius and a hairline — never pills, never
  * shadowed. Pressed state moves the surface down one pixel, because the whole
- * product is pretending to be a physical counter and a press should feel like
+ * product is pretending to be a physical pickup point and a press should feel like
  * one.
  */
 

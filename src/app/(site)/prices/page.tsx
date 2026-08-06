@@ -16,7 +16,7 @@ import { requestNow } from "@/server/clock";
  * behind that limit is worth stating: a price you can look at is a different
  * promise from a price you can trade on. What KYRO can honestly publish is what
  * the market is doing right now, attributed and timestamped. What it charges is
- * fixed at the counter, on a quote with an expiry, and that quote is built
+ * fixed at the pickup point, on a quote with an expiry, and that quote is built
  * elsewhere.
  *
  * So this page reports, and links to the calculator. It does not quote.
@@ -123,7 +123,7 @@ export default async function PricesPage() {
               be hours old, this page shows nothing.
             </p>
             <p className="max-w-[68ch] text-small text-ink-muted">
-              The counter is unaffected. Exchange quotes are built independently and
+              The pickup point is unaffected. Exchange quotes are built independently and
               carry their own expiry, so you can still book an order.
             </p>
           </div>
@@ -150,7 +150,7 @@ export default async function PricesPage() {
               A quote, built when you ask for one, with {feePercent}% of the cash side
               as the fee and the network fee shown separately. It holds for a stated
               time and then expires. What you see on the receipt is what changes
-              hands at the counter.
+              hands at the pickup point.
             </p>
             <div className="mt-5 flex flex-wrap gap-3">
               <ButtonLink href="/exchange">Get a quote</ButtonLink>

@@ -12,10 +12,10 @@ export const SITE = {
   url: process.env.NEXT_PUBLIC_SITE_URL ?? "https://kyro.example",
   tagline: "Cash to crypto. Crypto to cash.",
   description:
-    "Exchange cash for cryptocurrency, or cryptocurrency for cash, in person at a counter in Bosnia, Serbia, Croatia, Montenegro or North Macedonia. One 4% fee, shown in full before you commit.",
+    "Exchange cash for cryptocurrency, or cryptocurrency for cash, in person at a pickup point in Bosnia, Serbia, Croatia, Montenegro or North Macedonia. One 4% fee, shown in full before you commit.",
   /** The one-sentence answer to "what is KYRO". Used verbatim in JSON-LD. */
   summary:
-    "KYRO is a physical cash-to-crypto exchange counter in the Balkans, charging a single 4% fee on the cash side of every exchange.",
+    "KYRO is a cash-to-crypto exchange with physical pickup points across the Balkans, charging a single 4% fee on the cash side of every exchange.",
   locale: "en_GB",
   areaServed: ["BA", "RS", "HR", "ME", "MK"],
   email: "help@kyro.example",
@@ -34,12 +34,12 @@ export const KEY_FACTS: ReadonlyArray<{ question: string; answer: string }> = [
   {
     question: "What is KYRO?",
     answer:
-      "KYRO is a cash-to-crypto and crypto-to-cash exchange with physical counters across the Balkans. You create an order online, choose a counter, then pay or collect in person.",
+      "KYRO is a cash-to-crypto and crypto-to-cash exchange with physical pickup points across the Balkans. You create an order online, choose a pickup point, then pay or collect in person.",
   },
   {
     question: "How much does KYRO charge?",
     answer:
-      "A single service fee of 4% of the cash side of the exchange, in both directions. On €1,000 that is €40. There is no spread hidden in the exchange rate and nothing is added at the counter. The blockchain network fee is separate and is shown on its own line.",
+      "A single service fee of 4% of the cash side of the exchange, in both directions. On €1,000 that is €40. There is no spread hidden in the exchange rate and nothing is added at the pickup point. The blockchain network fee is separate and is shown on its own line.",
   },
   {
     question: "Do I need an account to use KYRO?",
@@ -54,15 +54,15 @@ export const KEY_FACTS: ReadonlyArray<{ question: string; answer: string }> = [
   {
     question: "Which currencies and countries does KYRO cover?",
     answer:
-      "Euro, Bosnian convertible mark, Serbian dinar, Macedonian denar and Albanian lek, at counters in Bosnia and Herzegovina, Serbia, Croatia, Montenegro and North Macedonia.",
+      "Euro, Bosnian convertible mark, Serbian dinar, Macedonian denar and Albanian lek, at pickup points in Bosnia and Herzegovina, Serbia, Croatia, Montenegro and North Macedonia.",
   },
   {
     question: "How long does an exchange take?",
     answer:
-      "A few minutes at the counter. The remaining wait is the blockchain: about one minute on Base, Arbitrum, Tron or Solana, and up to twenty minutes on Bitcoin.",
+      "A few minutes at the pickup point. The remaining wait is the blockchain: about one minute on Base, Arbitrum, Tron or Solana, and up to twenty minutes on Bitcoin.",
   },
   {
-    question: "What do I need to bring to a KYRO counter?",
+    question: "What do I need to bring to a KYRO pickup point?",
     answer:
       "Photo identification and your order code. If you are paying in cash, bring the exact amount shown on your order.",
   },

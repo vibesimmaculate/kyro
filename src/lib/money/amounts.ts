@@ -214,7 +214,7 @@ export function rateFromString(fiat: FiatCode, asset: CryptoCode, value: string)
   return { fiat, asset, value: parseFixed(value, RATE_SCALE) };
 }
 
-/** Crypto → fiat. Rounded half-up: the counter pays whole cash units. */
+/** Crypto → fiat. Rounded half-up: the pickup point pays whole cash units. */
 export function convertCryptoToFiat(c: CryptoAmount, r: Rate): Money {
   if (r.asset !== c.asset) throw new TypeError(`Rate is for ${r.asset}, amount is ${c.asset}`);
   const productScale = RATE_SCALE + 4;

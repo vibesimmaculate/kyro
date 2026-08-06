@@ -53,7 +53,7 @@ export default function FeesPage() {
           <>
             KYRO charges 4% of the cash side of every exchange. That is the whole
             commercial arrangement. The rate you are quoted is the rate — there is no
-            spread hidden inside it, and nothing is added at the counter.
+            spread hidden inside it, and nothing is added at the pickup point.
           </>
         }
         aside={

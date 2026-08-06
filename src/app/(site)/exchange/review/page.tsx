@@ -187,7 +187,7 @@ export default async function ReviewPage() {
           backLabel="Back to location"
           footnote={
             <>
-              This holds the rate for 45 minutes and reserves your slot at the counter.
+              This holds the rate for 45 minutes and reserves your slot at the pickup point.
               Nothing is charged now — you pay in person. Sending your code to{" "}
               <span className="figure-num">{draft.email}</span>.
             </>

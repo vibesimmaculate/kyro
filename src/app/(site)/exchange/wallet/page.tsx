@@ -60,7 +60,7 @@ export default async function WalletPage() {
         backLabel="Back to details"
         footnote={
           cashToCrypto
-            ? "You can still change this at the counter, right up until the transfer is sent."
+            ? "You can still change this at the pickup point, right up until the transfer is sent."
             : "Sending on a different network than the one chosen here can lose the funds permanently."
         }
       >

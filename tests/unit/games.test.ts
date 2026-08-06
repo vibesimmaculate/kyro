@@ -11,6 +11,8 @@ import {
   COIN_FLIP_MULTIPLIER,
   HOUSE_EDGE_BP,
   MULTIPLIER_SCALE,
+  crashMultiplierAt,
+  crashTimeFor,
   PLINKO_MULTIPLIERS,
   PLINKO_ROWS,
   crashPoint,
@@ -345,5 +347,40 @@ describe("tower", () => {
     for (const count of counts) {
       expect(count / total).toBeCloseTo(1 / 3, 2);
     }
+  });
+});
+
+describe("the crash curve", () => {
+  it("starts at 1.00× and only climbs", () => {
+    expect(crashMultiplierAt(0)).toBe(MULTIPLIER_SCALE);
+    expect(crashMultiplierAt(-500)).toBe(MULTIPLIER_SCALE);
+
+    let previous = 0;
+    for (let ms = 0; ms <= 12_000; ms += 250) {
+      const value = crashMultiplierAt(ms);
+      expect(value).toBeGreaterThanOrEqual(previous);
+      previous = value;
+    }
+  });
+
+  it("round-trips against its own inverse", () => {
+    // The client draws the curve and the server settles against it. If these
+    // two disagree by more than a rounding step, a player is paid for a
+    // different moment than the one they saw.
+    for (const multiplier of [11_000, 15_000, 20_000, 50_000, 137_000, 1_000_000]) {
+      const at = crashTimeFor(multiplier);
+      expect(crashMultiplierAt(at)).toBeGreaterThanOrEqual(multiplier - 2);
+      expect(crashMultiplierAt(at)).toBeLessThanOrEqual(multiplier + 2);
+    }
+  });
+
+  it("accelerates, so the window to decide narrows as the stakes rise", () => {
+    // The time from 1× to 2× must be longer than from 10× to 20×, or the game
+    // has no shape: doubling should get harder to sit through, not easier.
+    const early = crashTimeFor(20_000) - crashTimeFor(10_000);
+    const late = crashTimeFor(200_000) - crashTimeFor(100_000);
+    expect(early).toBeCloseTo(late, 0);
+    expect(crashTimeFor(20_000)).toBeGreaterThan(1_000);
+    expect(crashTimeFor(100_000)).toBeLessThan(11_000);
   });
 });

@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { LocationPlot } from "@/components/locations/LocationPlot";
+import { LocationMap } from "@/components/locations/LocationMap";
 import { LocationRow } from "@/components/locations/LocationRow";
 import { PageHeader } from "@/components/site/PageHeader";
 import { cn } from "@/lib/cn";
 import {
   COUNTRIES,
-  counterClock,
+  pickupClock,
   LOCATIONS,
   type CountryCode,
 } from "@/fixtures/locations";
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "/locations" },
   title: "Locations",
   description:
-    "Every KYRO counter, with opening hours, the directions it handles and how much cash it can pay out.",
+    "Every KYRO pickup point, with opening hours, the directions it handles and how much cash it can pay out.",
 };
 
 const COUNTRY_ORDER: readonly CountryCode[] = ["BA", "RS", "HR", "ME", "MK"];
@@ -32,7 +32,7 @@ export default async function LocationsPage({
 }) {
   const params = await searchParams;
   const filter = COUNTRY_ORDER.find((c) => c === params.country);
-  const clock = counterClock(requestDate());
+  const clock = pickupClock(requestDate());
 
   const shown = filter ? LOCATIONS.filter((l) => l.country === filter) : LOCATIONS;
 
@@ -57,11 +57,11 @@ export default async function LocationsPage({
       <PageHeader
         eyebrow="Locations"
         title="Where to pay, and where to collect."
-        lead="Each counter lists its hours, which directions it handles, the currencies it holds and how much cash it can pay out without notice."
+        lead="Each pickup point lists its hours, which directions it handles, the currencies it holds and how much cash it can pay out without notice."
       />
 
       <div className="shell pb-6">
-        <LocationPlot locations={LOCATIONS} className="max-w-[42rem]" />
+        <LocationMap locations={LOCATIONS} className="max-w-[42rem]" />
       </div>
 
       <div className="shell">
@@ -113,7 +113,7 @@ export default async function LocationsPage({
       <div className="shell pb-20">
         {grouped.length === 0 ? (
           <div className="border-t border-rule py-16 text-center">
-            <p className="text-subhead font-medium">No counters there yet.</p>
+            <p className="text-subhead font-medium">No pickup points there yet.</p>
             <p className="mt-2 text-small text-ink-muted">
               KYRO is opening across the region.{" "}
               <Link href="/locations" className="underline underline-offset-4">
@@ -131,7 +131,7 @@ export default async function LocationsPage({
                 </h2>
                 <p className="label-mono text-ink-faint">
                   {group.country.currency} · {group.locations.length}{" "}
-                  {group.locations.length === 1 ? "counter" : "counters"}
+                  {group.locations.length === 1 ? "pickup point" : "pickup points"}
                 </p>
               </div>
               <ul>

@@ -112,3 +112,50 @@ export async function fetchMarkets(signal?: AbortSignal): Promise<MarketSnapshot
 
   return { rows, fetchedAt: Date.now(), source: "CoinGecko" };
 }
+
+/* ── History, for the per-asset chart ───────────────────────────────────── */
+
+export type ChartRange = "1" | "7" | "30" | "365";
+
+export const CHART_RANGES: readonly { readonly days: ChartRange; readonly label: string }[] = [
+  { days: "1", label: "24 hours" },
+  { days: "7", label: "7 days" },
+  { days: "30", label: "30 days" },
+  { days: "365", label: "1 year" },
+];
+
+export interface PriceHistory {
+  readonly asset: CryptoCode;
+  readonly days: ChartRange;
+  /** [epoch ms, euro price], oldest first. */
+  readonly points: readonly (readonly [number, number])[];
+  readonly fetchedAt: number;
+}
+
+const HistorySchema = z.object({
+  prices: z.array(z.tuple([z.number(), z.number()])),
+});
+
+export async function fetchHistory(
+  asset: CryptoCode,
+  days: ChartRange,
+  signal?: AbortSignal,
+): Promise<PriceHistory> {
+  const url = new URL(`https://api.coingecko.com/api/v3/coins/${IDS[asset]}/market_chart`);
+  url.searchParams.set("vs_currency", "eur");
+  url.searchParams.set("days", days);
+
+  const response = await fetch(url, {
+    signal,
+    headers: { accept: "application/json" },
+    // A day of history changes by the minute; a year of it does not.
+    next: { revalidate: days === "1" ? 120 : 900 },
+  });
+
+  if (!response.ok) throw new Error(`History feed returned ${response.status}`);
+
+  const parsed = HistorySchema.parse(await response.json());
+  if (parsed.prices.length < 2) throw new Error("History feed returned no usable points");
+
+  return { asset, days, points: parsed.prices, fetchedAt: Date.now() };
+}

@@ -70,7 +70,7 @@ export default async function OrderPage({
           <span>
             <span className="font-medium">Your exchange is ready.</span>{" "}
             <span className="text-ink-muted">
-              Write the code down or keep this page — it is all you need at the counter.
+              Write the code down or keep this page — it is all you need at the pickup point.
             </span>
           </span>
         </p>
@@ -89,7 +89,7 @@ export default async function OrderPage({
             <div className="mt-6 rounded-[8px] border border-amber/40 bg-amber-wash p-4">
               <p className="text-small font-medium">The rate on this order is no longer held.</p>
               <p className="mt-1 text-small text-ink-muted">
-                The counter will re-quote you at the current rate when you arrive, and you can
+                The pickup point will re-quote you at the current rate when you arrive, and you can
                 walk away if you do not like it.
               </p>
               <ButtonLink href="/exchange" variant="secondary" size="sm" className="mt-3">
@@ -116,7 +116,7 @@ export default async function OrderPage({
             <section className="mt-8 rounded-[10px] border border-rule bg-paper-sunk p-5">
               <h2 className="label-mono text-ink-faint">Deposit address</h2>
               <p className="mt-2 text-small text-ink-muted">
-                Not issued yet. It appears here as soon as the counter opens the order —
+                Not issued yet. It appears here as soon as the pickup point opens the order —
                 usually within a minute. Nothing is needed from you until then.
               </p>
             </section>
@@ -150,7 +150,7 @@ export default async function OrderPage({
                   {order.reference}
                 </p>
                 <p className="mt-1.5 text-micro text-ink-muted">
-                  Read this out at the counter, with your ID.
+                  Read this out at the pickup point, with your ID.
                 </p>
               </div>
 

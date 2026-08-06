@@ -6,8 +6,6 @@ import { CRYPTO_CODES, type CryptoCode } from "@/lib/money/currencies";
 import {
   COIN_FLIP_MULTIPLIER,
   HOUSE_EDGE_BP,
-  MULTIPLIER_SCALE,
-  crashPoint,
   diceMultiplier,
   minesBoard,
   minesMultiplier,
@@ -262,33 +260,6 @@ export async function playDiceRound(formData: FormData): Promise<RoundResult> {
       return {
         multiplier: result.won ? diceMultiplier(parsed.data.chance) : 0,
         outcome: { roll: result.roll, target: result.target, won: result.won },
-      };
-    },
-  );
-}
-
-export async function playCrashRound(formData: FormData): Promise<RoundResult> {
-  const parsed = StakeSchema.extend({
-    /** Where the player has set their automatic cash-out, at 4dp. */
-    target: z.coerce.number().min(1.01).max(1000),
-  }).safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return { ok: false, error: "Check your stake and target." };
-
-  const target = Math.round(parsed.data.target * MULTIPLIER_SCALE);
-
-  return runRound(
-    {
-      game: "crash",
-      asset: parsed.data.asset,
-      stake: BigInt(parsed.data.stake),
-      params: { target },
-    },
-    (serverSeed, clientSeed, nonce) => {
-      const { crashPoint: point } = crashPoint(serverSeed, clientSeed, nonce);
-      const survived = point >= target;
-      return {
-        multiplier: survived ? target : 0,
-        outcome: { crashPoint: point, target, survived },
       };
     },
   );

@@ -18,7 +18,7 @@ export default function OperatorLayout({
           <Link href="/" className="flex items-center">
             <Wordmark size="sm" />
           </Link>
-          <span className="label-mono text-ink-faint">Counter console</span>
+          <span className="label-mono text-ink-faint">Pickup point console</span>
           <Link
             href="/"
             className="label-mono ms-auto text-ink-muted transition-colors hover:text-ink"

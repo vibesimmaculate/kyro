@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { SupportItem } from "@/components/help/SupportAccordion";
 
 /**
- * The questions people actually ask at a counter, answered the way a person
+ * The questions people actually ask at a pickup point, answered the way a person
  * would answer them. Shared by the homepage and /help so the two can never
  * drift apart.
  */
@@ -16,7 +16,7 @@ export const FAQ_ITEMS: readonly SupportItem[] = [
         <p>
           KYRO takes 4% of the cash side of the exchange. On €1 000 that is €40, every
           time, whichever way the exchange runs. There is no spread hidden in the rate
-          and no second fee at the counter.
+          and no second fee at the pickup point.
         </p>
         <p className="mt-3">
           The network charges its own fee to move crypto, which is separate and shown on
@@ -33,7 +33,7 @@ export const FAQ_ITEMS: readonly SupportItem[] = [
     answer: (
       <>
         <p>
-          At the counter, a few minutes. The wait is the network, not us.
+          At the pickup point, a few minutes. The wait is the network, not us.
         </p>
         <p className="mt-3">
           Cash to crypto: once you have paid, the transfer is sent immediately and
@@ -82,7 +82,7 @@ export const FAQ_ITEMS: readonly SupportItem[] = [
       <>
         <p>Until the crypto is sent, yes. After that, no — nobody can.</p>
         <p className="mt-3">
-          You can edit the address at any point in the order flow, and at the counter
+          You can edit the address at any point in the order flow, and at the pickup point
           before you pay. Once a transfer is broadcast it is final: a blockchain has no
           recall. This is why the review step shows the address in full, in mono, split
           into groups you can read out loud and check.

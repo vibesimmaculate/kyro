@@ -30,7 +30,7 @@ export default async function DetailsPage() {
       step={1}
       completed={draft.done}
       title="Where should we send your order code?"
-      lead="One email. It carries the code you will read out at the counter, and a link to track the order."
+      lead="One email. It carries the code you will read out at the pickup point, and a link to track the order."
       quote={priced.quote}
       locationSlug={draft.location}
     >

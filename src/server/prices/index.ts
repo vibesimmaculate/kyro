@@ -1,5 +1,12 @@
 import "server-only";
-import { fetchMarkets, type MarketSnapshot } from "./source";
+import type { CryptoCode } from "@/lib/money/currencies";
+import {
+  fetchHistory,
+  fetchMarkets,
+  type ChartRange,
+  type MarketSnapshot,
+  type PriceHistory,
+} from "./source";
 
 /**
  * Access to the market feed, with the failure mode designed first.
@@ -108,4 +115,28 @@ export function cachedMarkets(): MarketSnapshot | undefined {
   return Date.now() - store.snapshot.fetchedAt < STALE_MS ? store.snapshot : undefined;
 }
 
-export type { MarketRow, MarketSnapshot } from "./source";
+export type { MarketRow, MarketSnapshot, PriceHistory, ChartRange } from "./source";
+export { CHART_RANGES } from "./source";
+
+/**
+ * A price series for one asset.
+ *
+ * Deliberately not cached in this module: Next already caches the underlying
+ * request per asset and range, and the page that renders it is statically
+ * regenerated. A second cache here would only add a way for the two to
+ * disagree about how old the chart is.
+ */
+export async function getHistory(
+  asset: CryptoCode,
+  days: ChartRange,
+): Promise<PriceHistory | undefined> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  try {
+    return await fetchHistory(asset, days, controller.signal);
+  } catch {
+    return undefined;
+  } finally {
+    clearTimeout(timer);
+  }
+}

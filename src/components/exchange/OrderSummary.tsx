@@ -62,7 +62,7 @@ export function OrderSummary({ quote, locationSlug }: OrderSummaryProps) {
         </div>
         {location ? (
           <div className="flex items-baseline gap-1.5 py-1">
-            <dt className="flex-none text-ink-muted">Counter</dt>
+            <dt className="flex-none text-ink-muted">Pickup point</dt>
             <span aria-hidden="true" className="leader" />
             <dd className="flex-none text-end">
               {location.city} — {location.branch}

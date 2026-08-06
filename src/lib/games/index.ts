@@ -176,6 +176,32 @@ export function crashPoint(serverSeed: string, clientSeed: string, nonce: number
   return { crashPoint: Math.max(MULTIPLIER_SCALE, Math.floor(withHouse * MULTIPLIER_SCALE)) };
 }
 
+/**
+ * How fast the curve climbs.
+ *
+ * The multiplier multiplies by this every second, so the growth is exponential
+ * and the *rate of change* accelerates — which is the whole feel of the game.
+ * A linear climb gives you as long to decide at 20× as at 2×; an exponential
+ * one takes the time away exactly as the stakes rise.
+ *
+ * 1.6 puts 2× at about a second and a half and 10× at just under five seconds.
+ * Slower and the early game drags; faster and there is no window to decide in.
+ */
+export const CRASH_GROWTH_PER_SECOND = 1.6;
+
+/** The multiplier the curve has reached after `ms`, at four decimal places. */
+export function crashMultiplierAt(ms: number): number {
+  if (ms <= 0) return MULTIPLIER_SCALE;
+  const value = Math.pow(CRASH_GROWTH_PER_SECOND, ms / 1000);
+  return Math.max(MULTIPLIER_SCALE, Math.floor(value * MULTIPLIER_SCALE));
+}
+
+/** When the curve reaches `multiplier`. The inverse of the above. */
+export function crashTimeFor(multiplier: number): number {
+  const target = Math.max(MULTIPLIER_SCALE, multiplier) / MULTIPLIER_SCALE;
+  return (Math.log(target) / Math.log(CRASH_GROWTH_PER_SECOND)) * 1000;
+}
+
 /* ── Plinko ────────────────────────────────────────────────────────────── */
 
 export const PLINKO_ROW_OPTIONS = [8, 12, 16] as const;

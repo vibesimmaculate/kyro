@@ -95,7 +95,7 @@ function demoOrders(): Order[] {
       createdAt: created,
       expiresAt: created + ORDER_HOLD_MS,
       events: [
-        { status: "created", at: created, note: "Rate held. The counter is expecting you." },
+        { status: "created", at: created, note: "Rate held. The pickup point is expecting you." },
         {
           status: "identity-confirmed",
           at: created + 12 * 60 * 1000,
@@ -146,7 +146,7 @@ function demoOrders(): Order[] {
         {
           status: "settlement-sent",
           at: created + 16 * 60 * 1000,
-          note: "Cash counted and ready at the counter.",
+          note: "Cash counted and ready at the pickup point.",
         },
         { status: "complete", at: created + 52 * 60 * 1000, note: "Collected. Thank you." },
       ],

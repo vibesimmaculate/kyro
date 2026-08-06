@@ -12,7 +12,7 @@ import { MULTIPLIER_SCALE } from "@/lib/games";
  * alarming in isolation and completely ordinary in a strip of fifteen.
  *
  * What it deliberately does not do is imply a pattern. There is no "hot" or
- * "cold" marker, no streak counter, no trend arrow — each round is independent
+ * "cold" marker, no streak pickup point, no trend arrow — each round is independent
  * and suggesting otherwise would be inventing a signal that does not exist.
  */
 

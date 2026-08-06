@@ -115,7 +115,7 @@ export function createBitcoinAdapter(): ChainAdapter {
           btc.Address(other).decode(trimmed);
           return {
             ok: false,
-            reason: `That is a valid ${otherName} address, but this counter is on ${thisName}. Sending there would lose the funds.`,
+            reason: `That is a valid ${otherName} address, but this pickup point is on ${thisName}. Sending there would lose the funds.`,
           };
         } catch {
           return {

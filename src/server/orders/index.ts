@@ -101,7 +101,7 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
         at,
         note:
           quote.direction === "cash-to-crypto"
-            ? "Rate held. The counter is expecting you."
+            ? "Rate held. The pickup point is expecting you."
             : "Deposit address issued for this order.",
       },
     ],

@@ -3,7 +3,7 @@ import { randomInt } from "node:crypto";
 /**
  * Order codes.
  *
- * KYR-4H2N-8QX1. Read aloud across a counter, written on a phone screen, typed
+ * KYR-4H2N-8QX1. Read aloud across a pickup point, written on a phone screen, typed
  * by someone in a hurry — so the alphabet drops the characters that get
  * confused when spoken or seen: no I or 1, no O or 0, no B, S, U or Z. What
  * remains is unambiguous in speech and in print.

@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/Button";
 import { Selector, type SelectorOption } from "@/components/ui/Selector";
 import {
   availabilityOf,
-  counterClock,
+  pickupClock,
   locationsSupporting,
   sampleLocationProvider,
 } from "@/fixtures/locations";
@@ -233,7 +233,7 @@ export function ExchangeCalculator({
   }));
 
   const locationOptions: SelectorOption[] = locations.map((location) => {
-    const availability = availabilityOf(location, counterClock(new Date(quoteAt)));
+    const availability = availabilityOf(location, pickupClock(new Date(quoteAt)));
     return {
       value: location.slug,
       label: `${location.city} — ${location.branch}`,
@@ -329,7 +329,7 @@ export function ExchangeCalculator({
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <div>
             <label
-              htmlFor={`${fieldId}-counter`}
+              htmlFor={`${fieldId}-pickup point`}
               className="label-mono block text-ink-muted"
             >
               {cashToCrypto ? "You receive" : "Paid out in"}
@@ -337,7 +337,7 @@ export function ExchangeCalculator({
             <div className="mt-2">
               {cashToCrypto ? (
                 <Selector
-                  id={`${fieldId}-counter`}
+                  id={`${fieldId}-pickup point`}
                   value={state.asset}
                   onValueChange={(asset) => update({ asset: asset as CryptoCode })}
                   options={assetOptions}
@@ -346,7 +346,7 @@ export function ExchangeCalculator({
                 />
               ) : (
                 <Selector
-                  id={`${fieldId}-counter`}
+                  id={`${fieldId}-pickup point`}
                   value={state.fiat}
                   onValueChange={(fiat) => update({ fiat: fiat as FiatCode })}
                   options={fiatOptions}
@@ -404,7 +404,7 @@ export function ExchangeCalculator({
               />
             ) : (
               <p className="rounded-[8px] border border-amber/40 bg-amber-wash px-3 py-2.5 text-small text-ink">
-                No counter handles {state.asset} for {state.fiat} in that direction yet.
+                No pickup point handles {state.asset} for {state.fiat} in that direction yet.
                 Change the currency or the coin.
               </p>
             )}

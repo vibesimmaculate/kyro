@@ -1,22 +1,36 @@
 /**
  * The sound of the games wing.
  *
- * Synthesised at runtime from oscillators, filters and envelopes. No audio
- * files, so the first tap is never silent waiting on a download, and the whole
- * system costs a couple of kilobytes.
+ * Synthesised at runtime on the engine in `./engine` — no audio files, so the
+ * first tap is never silent waiting on a download and the whole system is a few
+ * kilobytes rather than a few megabytes. It is also the only way these sounds
+ * can be *parameterised by the round*: a win worth two times the stake and one
+ * worth two hundred are the same event with different numbers, and a sampled
+ * jingle cannot tell you which one just happened.
  *
- * Sounds are built from layered *voices* rather than single tones, because one
- * sine wave sounds like a test tone and three stacked ones sound like an
- * instrument. A win is a bass note plus a triad plus a bright transient; a bomb
- * is a noise burst plus a falling sub. That layering is most of the difference
- * between "a beep played" and "something happened".
+ * Every sound here is layered. The industry writing on this is unanimous and
+ * matches what your ears already know: a win is not a jingle, it is a sub you
+ * feel, a chord you hear, a transient that makes it land and a shimmer that
+ * makes it linger. Four voices with four envelopes, not one sample.
  *
- * The rule the design follows: **sound reports what happened and never oversells
- * it.** Wins scale with what was actually won. A loss is short, low and
- * unglamorous — never dressed up as a near-win, because a losing round that
- * sounds like a winning one is the oldest trick in this industry.
+ * The rule the design follows, and the reason some of it is deliberately
+ * restrained: **sound reports what happened and never oversells it.** Wins
+ * scale with what was actually won. A loss is short, low and unglamorous —
+ * never dressed up as a near-win, never given a rising tone, never made louder
+ * the longer you play. A losing round that sounds like a winning one is the
+ * oldest trick in this industry and the one thing this file will not do.
  */
 
+import {
+  audioChain,
+  buildChain,
+  duckFor,
+  isReady,
+  noise,
+  silence,
+  sub,
+  tone,
+} from "./engine";
 import { intensity } from "./intensity";
 
 export type SoundName =
@@ -35,73 +49,25 @@ export type SoundName =
   | "break"
   | "whoosh"
   | "land"
-  | "tension";
+  | "tension"
+  | "riser"
+  | "impact";
 
 const STORAGE_KEY = "kyro.sound";
 
 /**
- * Minor pentatonic, in semitones. Every note sits with every other, so a run of
- * eight rising steps resolves instead of souring — which matters when the
- * player chooses how far up the scale to climb.
+ * Minor pentatonic. Every note sits with every other, so a run of eight rising
+ * steps resolves instead of souring — which matters when the player chooses how
+ * far up the scale to climb.
  */
 const SCALE = [0, 3, 5, 7, 10, 12, 15, 17, 19, 22, 24, 27];
 const ROOT_HZ = 220;
 
-/**
- * Adaptive intensity feeds the celebrations only.
- *
- * A fast session gets a slightly louder and brighter win. It never touches a
- * loss, a bust or a bomb — a losing round that grows more emphatic the faster
- * you play is precisely the mechanism this product refuses to build.
- */
-const scaleGain = (base: number): number => base * (1 + intensity() * 0.25);
-
 const hz = (semitones: number): number => ROOT_HZ * Math.pow(2, semitones / 12);
 
-interface Engine {
-  ctx: AudioContext;
-  master: GainNode;
-  compressor: DynamicsCompressorNode;
-  /** Send bus into the reverb. Voices tap this to sit in a room. */
-  send: GainNode;
-}
+/** Minor triad, minor seventh, and the ninth on top. Rich without being sweet. */
+const CHORD = [0, 3, 7, 10, 14];
 
-/**
- * A small room, synthesised.
- *
- * Every one of these voices is dry, and dry synthesis is the single loudest
- * tell that a game's audio was made cheaply — it sounds like it is happening
- * inside the speaker rather than in front of you. A short decaying impulse
- * response fixes that for a few lines and no download.
- *
- * The tail is deliberately under a second and rolled off in the treble. A long
- * bright reverb would smear a board where twelve pins ring in two seconds into
- * a wash, and legibility of *when* something struck is the whole point.
- */
-function buildRoom(ctx: AudioContext): ConvolverNode {
-  const seconds = 0.85;
-  const frames = Math.floor(ctx.sampleRate * seconds);
-  const buffer = ctx.createBuffer(2, frames, ctx.sampleRate);
-
-  for (let channel = 0; channel < 2; channel += 1) {
-    const data = buffer.getChannelData(channel);
-    for (let i = 0; i < frames; i += 1) {
-      const t = i / frames;
-      // Deterministic noise, decorrelated per channel so the tail is wide.
-      const x = Math.sin(i * (12.9898 + channel * 3.17) + 78.233) * 43758.5453;
-      const noise = (x - Math.floor(x)) * 2 - 1;
-      // Exponential decay, with the early part slightly damped so the onset is
-      // a room rather than a click.
-      data[i] = noise * Math.pow(1 - t, 2.6) * Math.min(1, t * 90);
-    }
-  }
-
-  const convolver = ctx.createConvolver();
-  convolver.buffer = buffer;
-  return convolver;
-}
-
-let engine: Engine | undefined;
 let enabled = true;
 let unlocked = false;
 
@@ -125,19 +91,16 @@ export function setSoundEnabled(next: boolean): void {
   }
   for (const listener of listeners) listener();
 
-  if (engine) {
-    const target = next ? 0.85 : 0;
-    engine.master.gain.cancelScheduledValues(engine.ctx.currentTime);
-    engine.master.gain.setValueAtTime(target, engine.ctx.currentTime);
+  const chain = audioChain();
+  if (chain) {
+    const target = next ? 0.9 : 0;
+    chain.master.gain.cancelScheduledValues(chain.ctx.currentTime);
+    chain.master.gain.setValueAtTime(target, chain.ctx.currentTime);
+    if (!next) silence();
   }
 }
 
-/**
- * Browsers refuse audio without a gesture, so the graph is built on the first
- * interaction. A compressor sits on the master bus: several voices firing at
- * once would otherwise clip, and clipping is the thing that makes synthesised
- * audio sound cheap.
- */
+/** Browsers refuse audio without a gesture, so the graph is built on first tap. */
 export function unlockSound(): void {
   if (typeof window === "undefined" || unlocked) return;
 
@@ -148,361 +111,422 @@ export function unlockSound(): void {
 
   try {
     const ctx = new Ctor();
-
-    const compressor = ctx.createDynamicsCompressor();
-    compressor.threshold.value = -14;
-    compressor.knee.value = 22;
-    compressor.ratio.value = 8;
-    compressor.attack.value = 0.003;
-    compressor.release.value = 0.2;
-
-    const master = ctx.createGain();
-    master.gain.value = soundEnabled() ? 0.85 : 0;
-
-    compressor.connect(master);
-    master.connect(ctx.destination);
-
-    // Reverb sits on a send rather than in line, so the dry transient stays
-    // sharp and only the tail is wet. In line, every click would arrive soft.
-    const send = ctx.createGain();
-    send.gain.value = 0.34;
-    const damp = ctx.createBiquadFilter();
-    damp.type = "lowpass";
-    damp.frequency.value = 3200;
-    const room = buildRoom(ctx);
-    const wet = ctx.createGain();
-    wet.gain.value = 0.5;
-
-    send.connect(damp);
-    damp.connect(room);
-    room.connect(wet);
-    wet.connect(compressor);
-
-    engine = { ctx, master, compressor, send };
+    buildChain(ctx, soundEnabled() ? 0.9 : 0);
     enabled = soundEnabled();
     unlocked = true;
     void ctx.resume();
   } catch {
-    // No audio available. Every call below becomes a no-op.
+    // No audio available on this device. Every call below becomes a no-op.
   }
 }
 
-interface Voice {
-  readonly freq: number;
-  readonly duration: number;
-  readonly type?: OscillatorType;
-  readonly gain?: number;
-  readonly delay?: number;
-  readonly glideTo?: number;
-  /** Low-pass cutoff. Rolling it off is what stops squares sounding harsh. */
-  readonly cutoff?: number;
-  /** Slight detune in cents, for thickness when two voices are stacked. */
-  readonly detune?: number;
-  /** −1 hard left to +1 hard right. */
-  readonly pan?: number;
-  /** 0–1 into the room. Transients want a little; sustained notes want more. */
-  readonly space?: number;
+/** Adaptive intensity touches the celebrations and nothing else. */
+const lift = (base: number): number => base * (1 + intensity() * 0.25);
+
+/* ── The pieces the big moments are built from ──────────────────────────── */
+
+/**
+ * A riser.
+ *
+ * Noise climbing through a filter while a tone climbs underneath it. This is
+ * the single most effective anticipation device in game audio: it does not tell
+ * you anything, it just makes the next half-second feel inevitable.
+ */
+function riser(duration: number, gain = 0.1): void {
+  noise({
+    duration,
+    gain,
+    attack: duration * 0.7,
+    decay: 0.01,
+    sustain: 1,
+    release: 0.04,
+    filter: { type: "bandpass", freq: 320, to: 8200, q: 1.6 },
+    sends: { reverb: 0.4 },
+  });
+  tone({
+    freq: hz(-12),
+    glideTo: hz(12),
+    duration,
+    gain: gain * 0.5,
+    type: "sawtooth",
+    attack: duration * 0.8,
+    decay: 0.01,
+    sustain: 1,
+    release: 0.05,
+    filter: { freq: 400, to: 4200, q: 4 },
+    sends: { reverb: 0.3 },
+  });
 }
 
 /**
- * The tail end of every voice: pan it, send some of it to the room, and let
- * the rest through dry.
+ * An impact.
  *
- * Panning is not decoration here. On a board where twelve pins ring in under
- * three seconds, hearing each strike arrive from where it actually happened is
- * most of what stops the sequence turning into a rattle.
+ * Sub drop, noise body, and a duck. The three-part structure is the whole of
+ * why a hit reads as physical: you feel the low end, you hear the air, and
+ * everything else gets out of the way to make room for it.
  */
-function bus(node: AudioNode, pan = 0, space = 0.25): void {
-  if (!engine) return;
-  const { ctx, compressor, send } = engine;
-
-  let out = node;
-  if (pan !== 0 && typeof ctx.createStereoPanner === "function") {
-    const panner = ctx.createStereoPanner();
-    panner.pan.value = Math.max(-1, Math.min(1, pan));
-    node.connect(panner);
-    out = panner;
-  }
-
-  out.connect(compressor);
-  if (space > 0) {
-    const tap = ctx.createGain();
-    tap.gain.value = space;
-    out.connect(tap);
-    tap.connect(send);
-  }
+function impact(strength = 1): void {
+  sub({ freq: 110 * (0.8 + strength * 0.4), glideTo: 34, duration: 0.55, gain: 0.42 * strength });
+  noise({
+    duration: 0.3,
+    gain: 0.16 * strength,
+    attack: 0.001,
+    decay: 0.09,
+    sustain: 0.16,
+    release: 0.2,
+    filter: { freq: 5200, to: 420 },
+    sends: { reverb: 0.35 },
+  });
+  duckFor(0.5 * strength, 0.34);
 }
 
-function voice(v: Voice): void {
-  if (!engine || !enabled) return;
-  const { ctx } = engine;
-  const start = ctx.currentTime + (v.delay ?? 0);
-  const duration = v.duration;
-
-  const osc = ctx.createOscillator();
-  osc.type = v.type ?? "sine";
-  osc.frequency.setValueAtTime(v.freq, start);
-  if (v.detune) osc.detune.setValueAtTime(v.detune, start);
-  if (v.glideTo !== undefined) {
-    osc.frequency.exponentialRampToValueAtTime(Math.max(1, v.glideTo), start + duration);
-  }
-
-  const env = ctx.createGain();
-  const peak = v.gain ?? 0.2;
-  env.gain.setValueAtTime(0.0001, start);
-  env.gain.exponentialRampToValueAtTime(peak, start + 0.006);
-  env.gain.exponentialRampToValueAtTime(0.0001, start + duration);
-
-  let node: AudioNode = osc;
-  if (v.cutoff) {
-    const filter = ctx.createBiquadFilter();
-    filter.type = "lowpass";
-    filter.frequency.setValueAtTime(v.cutoff, start);
-    osc.connect(filter);
-    node = filter;
-  }
-
-  node.connect(env);
-  bus(env, v.pan, v.space);
-  osc.start(start);
-  osc.stop(start + duration + 0.03);
+/** A chord, voiced across the stereo field so it opens up rather than stacks. */
+function chord(
+  root: number,
+  options: {
+    readonly duration: number;
+    readonly gain: number;
+    readonly delay?: number;
+    readonly type?: OscillatorType;
+    readonly voices?: number;
+    readonly spread?: number;
+  },
+): void {
+  CHORD.forEach((interval, i) => {
+    tone({
+      freq: hz(root + interval),
+      duration: options.duration,
+      gain: options.gain * (i === 0 ? 1 : 0.62),
+      delay: (options.delay ?? 0) + i * 0.012,
+      type: options.type ?? "sawtooth",
+      voices: options.voices ?? 5,
+      spread: options.spread ?? 18,
+      attack: 0.008,
+      decay: options.duration * 0.3,
+      sustain: 0.4,
+      release: options.duration * 0.6,
+      pan: (i / (CHORD.length - 1) - 0.5) * 0.6,
+      filter: { freq: 900, to: 5200, q: 1.1 },
+      sends: { reverb: 0.45, delay: 0.2 },
+    });
+  });
 }
 
-/** Filtered noise — the body of a thud, a click, a whoosh or an explosion. */
-function noise(options: {
-  duration: number;
-  gain?: number;
-  cutoff?: number;
-  sweepTo?: number;
-  delay?: number;
-  type?: BiquadFilterType;
-  pan?: number;
-  space?: number;
-}): void {
-  if (!engine || !enabled) return;
-  const { ctx } = engine;
-  const start = ctx.currentTime + (options.delay ?? 0);
-  const frames = Math.max(1, Math.floor(ctx.sampleRate * options.duration));
+/** A shimmer: high plucks walking across the field, on the delay. */
+function shimmer(steps: readonly number[], gain: number, offset = 0): void {
+  steps.forEach((step, i) => {
+    tone({
+      freq: hz(step + 24),
+      duration: 0.34,
+      gain,
+      delay: offset + i * 0.058,
+      type: "triangle",
+      attack: 0.002,
+      decay: 0.1,
+      sustain: 0.18,
+      release: 0.22,
+      pan: ((i / Math.max(1, steps.length - 1)) * 2 - 1) * 0.72,
+      filter: { freq: 8000 },
+      sends: { reverb: 0.55, delay: 0.4 },
+    });
+  });
+}
 
-  const buffer = ctx.createBuffer(1, frames, ctx.sampleRate);
-  const data = buffer.getChannelData(0);
-  // A deterministic hash rather than Math.random, which is banned repo-wide so
-  // nothing anywhere near an outcome reaches for it out of habit.
-  for (let i = 0; i < frames; i += 1) {
-    const x = Math.sin(i * 12.9898 + 78.233) * 43758.5453;
-    data[i] = (x - Math.floor(x)) * 2 - 1;
-  }
+/**
+ * The drop.
+ *
+ * Riser, then a beat of nothing, then everything at once. The pause is not an
+ * oversight — a drop with no gap before it is just a loud noise, and the beat
+ * of silence is what the ear reads as the moment of impact.
+ */
+function winDrop(strength: number): void {
+  const gain = lift(0.2) * (0.7 + strength * 0.5);
 
-  const source = ctx.createBufferSource();
-  source.buffer = buffer;
+  riser(0.52, 0.11);
 
-  const filter = ctx.createBiquadFilter();
-  filter.type = options.type ?? "lowpass";
-  filter.frequency.setValueAtTime(options.cutoff ?? 1400, start);
-  if (options.sweepTo !== undefined) {
-    filter.frequency.exponentialRampToValueAtTime(
-      Math.max(40, options.sweepTo),
-      start + options.duration,
-    );
-  }
-
-  const env = ctx.createGain();
-  env.gain.setValueAtTime(options.gain ?? 0.1, start);
-  env.gain.exponentialRampToValueAtTime(0.0001, start + options.duration);
-
-  source.connect(filter);
-  filter.connect(env);
-  bus(env, options.pan, options.space);
-  source.start(start);
-  source.stop(start + options.duration);
+  window.setTimeout(() => {
+    if (!isReady() || !enabled) return;
+    impact(0.8 + strength * 0.3);
+    chord(12, { duration: 1.1, gain, voices: 7, spread: 26 });
+    sub({ freq: 55, duration: 0.9, gain: 0.3, delay: 0.02 });
+    shimmer([0, 7, 12, 19, 24, 19, 12], gain * 0.4, 0.16);
+  }, 520);
 }
 
 /**
  * Plays a sound.
  *
- * `intensity` scales the ones that should reflect magnitude — a win worth
- * fifty times the stake is allowed to sound bigger than one worth 1.02×. It
- * scales nothing else, so a loss cannot be made to feel like a near-miss.
+ * `level` scales the ones that should reflect magnitude — a win worth fifty
+ * times the stake is allowed to sound bigger than one worth 1.02×. It scales
+ * nothing else, so a loss cannot be made to feel like a near-miss.
  */
-export function play(name: SoundName, intensity = 0, pan = 0): void {
-  if (!engine || !enabled) return;
-  const strength = Math.min(1, Math.max(0, intensity));
+export function play(name: SoundName, level = 0, pan = 0): void {
+  if (!isReady() || !enabled) return;
+  const strength = Math.min(1, Math.max(0, level));
 
   switch (name) {
     case "tick":
-      voice({ freq: 1200, duration: 0.025, type: "square", gain: 0.035, cutoff: 3000 });
+      tone({
+        freq: 1350,
+        duration: 0.03,
+        type: "square",
+        gain: 0.05,
+        attack: 0.001,
+        release: 0.02,
+        filter: { freq: 3400 },
+        pan,
+      });
       break;
 
     case "select":
-      voice({ freq: 520, duration: 0.07, type: "triangle", gain: 0.11 });
-      voice({ freq: 1040, duration: 0.05, type: "sine", gain: 0.05, delay: 0.012 });
+      tone({
+        freq: 560,
+        duration: 0.08,
+        type: "triangle",
+        gain: 0.13,
+        attack: 0.002,
+        release: 0.05,
+        sends: { reverb: 0.2 },
+      });
+      tone({ freq: 1120, duration: 0.06, gain: 0.06, delay: 0.014, attack: 0.001 });
       break;
 
     case "step": {
-      // The rising scale: the note climbs because the multiplier climbs.
-      const index = Math.min(SCALE.length - 1, Math.max(0, Math.round(intensity)));
+      // The ladder. The note climbs because the multiplier climbs, and the
+      // pentatonic guarantees eight of them in a row still resolve.
+      const index = Math.min(SCALE.length - 1, Math.max(0, Math.round(level)));
       const note = hz((SCALE[index] ?? 0) + 12);
-      voice({ freq: note, duration: 0.22, type: "triangle", gain: 0.15, cutoff: 5200 });
-      voice({ freq: note * 2, duration: 0.14, type: "sine", gain: 0.07, delay: 0.008 });
-      voice({ freq: note / 2, duration: 0.26, type: "sine", gain: 0.09 });
-      noise({ duration: 0.03, gain: 0.05, cutoff: 5000 });
+      tone({
+        freq: note,
+        duration: 0.3,
+        type: "triangle",
+        gain: 0.17,
+        voices: 3,
+        spread: 9,
+        attack: 0.004,
+        decay: 0.1,
+        sustain: 0.32,
+        release: 0.2,
+        filter: { freq: 2600, to: 5600, q: 1.4 },
+        sends: { reverb: 0.35, delay: 0.18 },
+      });
+      tone({ freq: note * 2, duration: 0.16, gain: 0.06, delay: 0.008, sends: { reverb: 0.4 } });
+      sub({ freq: note / 4, duration: 0.22, gain: 0.16 });
+      noise({
+        duration: 0.035,
+        gain: 0.05,
+        attack: 0.001,
+        release: 0.03,
+        filter: { freq: 6400 },
+      });
       break;
     }
 
     case "reveal":
-      voice({ freq: 700, duration: 0.1, type: "triangle", gain: 0.11, cutoff: 4000 });
-      noise({ duration: 0.045, gain: 0.06, cutoff: 2600 });
+      tone({
+        freq: 760,
+        duration: 0.12,
+        type: "triangle",
+        gain: 0.13,
+        attack: 0.002,
+        release: 0.08,
+        filter: { freq: 4400 },
+        sends: { reverb: 0.3 },
+      });
+      noise({
+        duration: 0.05,
+        gain: 0.07,
+        attack: 0.001,
+        release: 0.04,
+        filter: { freq: 3000, to: 1200 },
+      });
       break;
 
     case "whoosh":
-      // Air moving: a noise sweep, no pitch. Used as the coin leaves the hand.
-      noise({ duration: 0.34, gain: 0.09, cutoff: 400, sweepTo: 3600, type: "bandpass" });
+      noise({
+        duration: 0.38,
+        gain: 0.11,
+        attack: 0.16,
+        decay: 0.04,
+        sustain: 0.6,
+        release: 0.16,
+        filter: { type: "bandpass", freq: 380, to: 4200, q: 1.2 },
+        sends: { reverb: 0.4 },
+      });
       break;
 
     case "land":
-      voice({ freq: 150, duration: 0.14, type: "sine", gain: 0.16, glideTo: 90 });
-      noise({ duration: 0.06, gain: 0.08, cutoff: 1200 });
+      sub({ freq: 150, glideTo: 62, duration: 0.24, gain: 0.3 });
+      noise({
+        duration: 0.09,
+        gain: 0.1,
+        attack: 0.001,
+        release: 0.07,
+        filter: { freq: 1600, to: 300 },
+        pan,
+        sends: { reverb: 0.25 },
+      });
       break;
 
     case "tension":
       // A held low note under an in-progress round. Quiet enough to sit behind.
-      voice({ freq: 70, duration: 0.5, type: "sine", gain: 0.05 });
+      tone({
+        freq: 73,
+        duration: 0.6,
+        type: "sawtooth",
+        gain: 0.07,
+        voices: 3,
+        spread: 8,
+        attack: 0.2,
+        sustain: 0.7,
+        release: 0.3,
+        filter: { freq: 260, q: 3 },
+        sends: { reverb: 0.3 },
+      });
+      break;
+
+    case "riser":
+      riser(0.6 + strength * 0.5, 0.1);
+      break;
+
+    case "impact":
+      impact(0.6 + strength * 0.6);
       break;
 
     case "win": {
-      // Sub, triad, transient, air. Brighter and louder the more was won.
-      const gain = (0.14 + strength * 0.09) * scaleGain(1);
-      const root = hz(12);
-      // A short sub-bass thump under the chord. It is barely audible on a
-      // laptop and unmistakable on anything with a woofer — which is exactly
-      // what separates a win that is heard from one that is felt.
-      voice({ freq: 92, duration: 0.3, type: "sine", gain: gain * 1.1, glideTo: 58, space: 0.1 });
-      voice({ freq: root / 2, duration: 0.45, type: "sine", gain: gain * 0.9, space: 0.35 });
-      voice({ freq: root, duration: 0.4, type: "triangle", gain, cutoff: 6000, space: 0.4 });
-      voice({
-        freq: root * 1.26,
-        duration: 0.4,
-        type: "triangle",
-        gain: gain * 0.8,
-        delay: 0.045,
-        pan: -0.22,
-        space: 0.45,
-      });
-      voice({
-        freq: root * 1.5,
-        duration: 0.45,
-        type: "sine",
-        gain: gain * 0.75,
-        delay: 0.09,
-        pan: 0.22,
-        space: 0.45,
-      });
-      noise({ duration: 0.05, gain: 0.06, cutoff: 7000, space: 0.5 });
+      // Sub, chord, transient, air. Brighter and louder the more was won.
+      const gain = lift(0.17 + strength * 0.08);
+      impact(0.45 + strength * 0.25);
+      chord(12, { duration: 0.7, gain, voices: 5, spread: 16 });
+      shimmer([12, 19, 24], gain * 0.34, 0.1);
       break;
     }
 
-    case "bigWin": {
-      // A rising arpeggio over a sustained bass. Rare on purpose — a sound that
-      // plays constantly stops meaning anything.
-      const gain = 0.15 * scaleGain(1);
-      voice({ freq: hz(0), duration: 0.9, type: "sine", gain: 0.13, space: 0.3 });
-      voice({ freq: 74, duration: 0.5, type: "sine", gain: 0.18, glideTo: 46 });
-      [0, 4, 7, 12, 16, 19, 24].forEach((step, i) => {
-        // The arpeggio walks across the stereo field as it climbs, so seven
-        // notes read as a gesture rather than seven notes in the same place.
-        const pan = (i / 6 - 0.5) * 0.55;
-        voice({
-          freq: hz(step + 12),
-          duration: 0.34,
-          type: "triangle",
-          gain,
-          delay: i * 0.062,
-          cutoff: 7000,
-          pan,
-          space: 0.45,
-        });
-        voice({
-          freq: hz(step + 24),
-          duration: 0.2,
-          type: "sine",
+    case "bigWin":
+      // The drop. Rare on purpose — a sound that plays constantly stops
+      // meaning anything, and this one has to still mean something on the
+      // fiftieth round.
+      winDrop(strength);
+      break;
+
+    case "jackpot":
+      // The top of the range, and audibly a different category rather than a
+      // longer version of the same thing: the drop, then a second one an
+      // octave up while the first is still ringing.
+      winDrop(1);
+      window.setTimeout(() => {
+        if (!isReady() || !enabled) return;
+        impact(1);
+        chord(24, { duration: 1.5, gain: lift(0.16), voices: 7, spread: 30 });
+        shimmer([0, 7, 12, 19, 24, 31, 36], lift(0.1), 0);
+        noise({
+          duration: 1.1,
           gain: 0.06,
-          delay: i * 0.062 + 0.01,
-          pan,
-          space: 0.6,
+          attack: 0.02,
+          decay: 0.3,
+          sustain: 0.3,
+          release: 0.7,
+          filter: { type: "bandpass", freq: 1200, to: 9000, q: 0.9 },
+          sends: { reverb: 0.7 },
         });
-      });
+      }, 1180);
       break;
-    }
-
-    case "jackpot": {
-      // Reserved for the very top of the range. Two octaves of arpeggio, a
-      // sub-bass hit and a long tail, so it is unmistakably different from an
-      // ordinary big win rather than just a longer one.
-      voice({ freq: hz(-12), duration: 1.6, type: "sine", gain: 0.14, space: 0.4 });
-      voice({ freq: 66, duration: 0.75, type: "sine", gain: 0.2, glideTo: 40 });
-      [0, 4, 7, 12, 16, 19, 24, 28, 31, 36].forEach((step, i) => {
-        voice({
-          freq: hz(step + 12),
-          duration: 0.5,
-          type: "triangle",
-          gain: 0.15 * scaleGain(1),
-          delay: i * 0.055,
-          cutoff: 9000,
-          pan: (i / 9 - 0.5) * 0.7,
-          space: 0.55,
-        });
-      });
-      noise({
-        duration: 0.5,
-        gain: 0.05,
-        cutoff: 900,
-        sweepTo: 9000,
-        type: "bandpass",
-        delay: 0.1,
-        space: 0.7,
-      });
-      break;
-    }
 
     case "lose":
-      // Short, low, over quickly. No sting that invites another go.
-      voice({ freq: 190, duration: 0.24, type: "sine", gain: 0.13, glideTo: 84 });
-      noise({ duration: 0.14, gain: 0.06, cutoff: 520 });
+      // Short, low, over quickly. No sting that invites another go, no rising
+      // tone, no shimmer. It is allowed to be dull.
+      tone({
+        freq: 190,
+        glideTo: 78,
+        duration: 0.28,
+        type: "sine",
+        gain: 0.15,
+        attack: 0.004,
+        decay: 0.1,
+        sustain: 0.3,
+        release: 0.16,
+        sends: { reverb: 0.15 },
+      });
+      noise({
+        duration: 0.16,
+        gain: 0.06,
+        attack: 0.002,
+        release: 0.12,
+        filter: { freq: 620, to: 220 },
+      });
       break;
 
-    case "cashout":
-      // Two clean notes resolving upward: the sound of stopping deliberately,
+    case "cashout": {
+      // Three notes resolving upward: the sound of stopping deliberately,
       // which is the decision most worth rewarding.
-      voice({ freq: hz(12), duration: 0.2, type: "triangle", gain: 0.16, cutoff: 6000 });
-      voice({ freq: hz(19), duration: 0.34, type: "triangle", gain: 0.15, delay: 0.095 });
-      voice({ freq: hz(24), duration: 0.4, type: "sine", gain: 0.1, delay: 0.17 });
+      const gain = 0.19;
+      [12, 19, 24].forEach((step, i) => {
+        tone({
+          freq: hz(step),
+          duration: 0.38,
+          type: "triangle",
+          gain,
+          voices: 3,
+          spread: 10,
+          delay: i * 0.085,
+          attack: 0.004,
+          decay: 0.1,
+          sustain: 0.4,
+          release: 0.26,
+          filter: { freq: 3200, to: 6400 },
+          sends: { reverb: 0.45, delay: 0.25 },
+        });
+      });
+      sub({ freq: hz(0) / 2, duration: 0.5, gain: 0.24 });
       break;
+    }
 
     case "drop":
-      voice({ freq: 460, duration: 0.1, type: "sine", gain: 0.1, glideTo: 260 });
-      noise({ duration: 0.05, gain: 0.05, cutoff: 2400 });
+      tone({
+        freq: 520,
+        glideTo: 240,
+        duration: 0.14,
+        type: "triangle",
+        gain: 0.12,
+        attack: 0.002,
+        release: 0.1,
+        pan,
+      });
+      noise({
+        duration: 0.06,
+        gain: 0.06,
+        attack: 0.001,
+        release: 0.05,
+        filter: { freq: 2800, to: 900 },
+      });
       break;
 
     case "bounce": {
-      // Pitch drifts down with depth, so twelve pegs are twelve distinct taps
-      // rather than one sound repeated — and each one arrives from where on
-      // the board it actually happened.
+      // Pitch drifts down with depth, so twelve pins are twelve distinct taps
+      // rather than one sound repeated — and each arrives from where on the
+      // board it actually happened.
       const depth = strength;
-      voice({
-        freq: 1500 - depth * 620,
-        duration: 0.035,
+      tone({
+        freq: 1620 - depth * 700,
+        duration: 0.05,
         type: "triangle",
-        gain: 0.07,
-        cutoff: 6000,
+        gain: 0.085,
+        attack: 0.001,
+        decay: 0.012,
+        sustain: 0.18,
+        release: 0.035,
+        filter: { freq: 7000 - depth * 2600, q: 2.2 },
         pan,
-        space: 0.4,
+        sends: { reverb: 0.4, delay: 0.08 },
       });
       noise({
-        duration: 0.02,
-        gain: 0.04,
-        cutoff: 3400 - depth * 1400,
+        duration: 0.022,
+        gain: 0.045,
+        attack: 0.001,
+        release: 0.018,
+        filter: { freq: 3800 - depth * 1500, q: 1.4 },
         pan,
-        space: 0.3,
+        sends: { reverb: 0.25 },
       });
       break;
     }
@@ -510,20 +534,49 @@ export function play(name: SoundName, intensity = 0, pan = 0): void {
     case "climb":
       // The continuous rise under Crash. Deliberately thin — it plays many
       // times a second and must never become a siren.
-      voice({
-        freq: 260 + strength * 1150,
-        duration: 0.07,
+      tone({
+        freq: 240 + strength * 1400,
+        duration: 0.09,
         type: "sawtooth",
-        gain: 0.028,
-        cutoff: 2400,
+        gain: 0.03 + strength * 0.018,
+        attack: 0.004,
+        decay: 0.02,
+        sustain: 0.4,
+        release: 0.05,
+        filter: { freq: 900 + strength * 3600, q: 3.4 },
+        pan,
+        sends: { reverb: 0.18 },
       });
       break;
 
     case "break":
-      // A real bust: noise burst, falling sub, no melody.
-      noise({ duration: 0.4, gain: 0.15, cutoff: 3200, sweepTo: 200 });
-      voice({ freq: 220, duration: 0.5, type: "sawtooth", gain: 0.14, glideTo: 45, cutoff: 1400 });
-      voice({ freq: 62, duration: 0.6, type: "sine", gain: 0.16 });
+      // A real bust. Noise burst, falling sub, no melody, no resolution.
+      noise({
+        duration: 0.5,
+        gain: 0.2,
+        attack: 0.001,
+        decay: 0.14,
+        sustain: 0.22,
+        release: 0.34,
+        filter: { freq: 4200, to: 160 },
+        sends: { reverb: 0.4 },
+      });
+      tone({
+        freq: 240,
+        glideTo: 38,
+        duration: 0.6,
+        type: "sawtooth",
+        gain: 0.17,
+        voices: 3,
+        spread: 14,
+        attack: 0.002,
+        decay: 0.16,
+        sustain: 0.3,
+        release: 0.4,
+        filter: { freq: 1600, to: 200 },
+      });
+      sub({ freq: 68, glideTo: 30, duration: 0.7, gain: 0.32 });
+      duckFor(0.45, 0.4);
       break;
   }
 }
@@ -541,20 +594,20 @@ export function haptic(pattern: number | number[] = 8): void {
 
 export function feedback(
   name: SoundName,
-  intensity = 0,
+  level = 0,
   vibration: number | number[] = 8,
   pan = 0,
 ): void {
-  play(name, intensity, pan);
+  play(name, level, pan);
   haptic(vibration);
 }
 
 /**
- * Picks the right celebration for a multiplier, so no single call site has to
- * decide what counts as big. 4-decimal multiplier in, sound out.
+ * Picks the right celebration for a multiplier, so no call site has to decide
+ * what counts as big. A four-decimal multiplier in, a sound out.
  */
 export function celebrate(multiplier: number, vibration: number | number[] = [12, 26, 12]): void {
-  if (multiplier >= 250_000) feedback("jackpot", 1, [20, 40, 20, 40, 40]);
+  if (multiplier >= 250_000) feedback("jackpot", 1, [20, 40, 20, 40, 60]);
   else if (multiplier >= 50_000) feedback("bigWin", Math.min(1, multiplier / 250_000), vibration);
   else feedback("win", Math.min(1, multiplier / 60_000), vibration);
 }

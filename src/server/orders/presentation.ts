@@ -23,13 +23,13 @@ function copyFor(status: OrderStatus, order: Order): StageCopy {
       return {
         title: "Order created",
         body: cashToCrypto
-          ? "Your rate is locked and the counter has been told to expect you."
+          ? "Your rate is locked and the pickup point has been told to expect you."
           : "Your rate is locked and a deposit address has been issued for this order.",
       };
     case "identity-confirmed":
       return {
         title: "Identity confirmed",
-        body: "ID checked at the counter against the name on the order.",
+        body: "ID checked at the pickup point against the name on the order.",
       };
     case "awaiting-funds":
       return {
@@ -42,8 +42,8 @@ function copyFor(status: OrderStatus, order: Order): StageCopy {
       return {
         title: cashToCrypto ? "Cash received" : "Crypto received",
         body: cashToCrypto
-          ? "The counter has your money and the transfer is authorised."
-          : "Your transfer has confirmed. The counter is counting out your cash.",
+          ? "The pickup point has your money and the transfer is authorised."
+          : "Your transfer has confirmed. The pickup point is counting out your cash.",
       };
     case "settlement-sent":
       return {
@@ -64,7 +64,7 @@ function copyFor(status: OrderStatus, order: Order): StageCopy {
     case "expired":
       return {
         title: "Expired",
-        body: "The rate on this order is no longer held. Start again and the counter will quote you afresh.",
+        body: "The rate on this order is no longer held. Start again and the pickup point will quote you afresh.",
       };
     default:
       return { title: "In progress", body: "" };
@@ -107,7 +107,7 @@ export function nextActionFor(order: Order): { readonly headline: string; readon
       return {
         headline: cashToCrypto ? "Your exchange is ready." : "Send your crypto.",
         body: cashToCrypto
-          ? "Bring your ID and order code to the counter, with the exact cash."
+          ? "Bring your ID and order code to the pickup point, with the exact cash."
           : "Send the exact amount to the address below, then come and collect your cash.",
       };
     case "identity-confirmed":
@@ -136,7 +136,7 @@ export function nextActionFor(order: Order): { readonly headline: string; readon
         headline: cashToCrypto ? "Sent to your wallet." : "Your cash is ready.",
         body: cashToCrypto
           ? "It will appear once the network confirms it."
-          : "Bring your ID and order code to the counter.",
+          : "Bring your ID and order code to the pickup point.",
       };
     case "complete":
       return { headline: "Done.", body: "This exchange is finished. Thank you." };

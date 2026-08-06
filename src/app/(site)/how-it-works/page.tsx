@@ -22,13 +22,13 @@ const STEPS = [
   },
   {
     title: "Choose a location",
-    body: "Pick the counter that suits you. Hours, supported directions and the cash it can pay out without notice are listed for each one.",
+    body: "Pick the pickup point that suits you. Hours, supported directions and the cash it can pay out without notice are listed for each one.",
     detail: "Your order code arrives immediately.",
   },
   {
     title: "Pay or collect your cash",
     body: "Bring your ID and order code. Hand over cash and the crypto is sent, or send crypto and take the cash. The fee is the same either way.",
-    detail: "Nothing is charged until you are at the counter.",
+    detail: "Nothing is charged until you are at the pickup point.",
   },
 ];
 
@@ -60,11 +60,11 @@ export default function HowItWorksPage() {
           {[
             {
               t: "You create the order and get a code",
-              b: "The rate is fixed at the moment you confirm. It does not move while you travel to the counter.",
+              b: "The rate is fixed at the moment you confirm. It does not move while you travel to the pickup point.",
             },
             {
-              t: "You give the counter your wallet address",
-              b: "Entered when you create the order, and checked again on screen at the counter before anything is sent. Until the transfer is broadcast, you can change it.",
+              t: "You give the pickup point your wallet address",
+              b: "Entered when you create the order, and checked again on screen at the pickup point before anything is sent. Until the transfer is broadcast, you can change it.",
             },
             {
               t: "You pay the exact amount on the ticket",
@@ -95,7 +95,7 @@ export default function HowItWorksPage() {
       <Section
         index="03"
         title="Crypto to cash, in detail."
-        lead="You send the coin. The counter has your money ready."
+        lead="You send the coin. The pickup point has your money ready."
         id="crypto-to-cash"
         tone="sunk"
       >
@@ -115,7 +115,7 @@ export default function HowItWorksPage() {
             },
             {
               t: "You collect the cash",
-              b: "Bring your ID and order code. The counter counts it out in front of you.",
+              b: "Bring your ID and order code. The pickup point counts it out in front of you.",
             },
           ].map((item, i) => (
             <li key={item.t} className="flex gap-4 border-t border-rule pt-5 first:border-t-0 first:pt-0">
@@ -134,7 +134,7 @@ export default function HowItWorksPage() {
       <Section
         index="04"
         title="How long the network takes."
-        lead="The counter takes minutes. The wait, when there is one, belongs to the blockchain."
+        lead="The pickup point takes minutes. The wait, when there is one, belongs to the blockchain."
         id="confirmations"
       >
         <ScrollArea label="Confirmations and typical wait by network">

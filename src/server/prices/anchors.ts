@@ -14,7 +14,7 @@ import { getMarkets } from "./index";
  * the same thing and concludes that one of them is a placeholder.
  *
  * So the quote engine drinks from the same well. When the feed is up, the
- * counter's euro anchor is the market price and every quote says "Live rate".
+ * pickup point's euro anchor is the market price and every quote says "Live rate".
  * When it is down, both fall back together and both say "Preview rate". What
  * cannot happen any more is the two of them disagreeing.
  */

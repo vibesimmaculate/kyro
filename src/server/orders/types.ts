@@ -64,7 +64,7 @@ export interface Order {
 
   readonly status: OrderStatus;
   readonly createdAt: number;
-  /** After this the rate is no longer held and the counter re-quotes. */
+  /** After this the rate is no longer held and the pickup point re-quotes. */
   readonly expiresAt: number;
   readonly events: readonly OrderEvent[];
 

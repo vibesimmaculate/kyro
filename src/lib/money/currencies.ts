@@ -1,5 +1,5 @@
 /**
- * The currencies and assets KYRO handles at the counter.
+ * The currencies and assets KYRO handles at the pickup point.
  *
  * Fiat `decimals` here is the smallest unit a cashier can physically hand
  * over, not the ISO-4217 accounting default. Para, deni and qindarka are not in
@@ -20,7 +20,7 @@ export interface FiatCurrency {
   readonly countries: readonly string[];
   /** Sensible default order amount, used to seed the calculator. */
   readonly defaultAmount: string;
-  /** Counter limits. Below the minimum a fee is not worth the paperwork. */
+  /** Pickup-point limits. Below the minimum a fee is not worth the paperwork. */
   readonly minAmount: string;
   readonly maxAmount: string;
 }

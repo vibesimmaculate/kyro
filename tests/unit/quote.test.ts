@@ -123,11 +123,11 @@ describe("crypto → cash", () => {
     expect(q.networkFee.base).toBeGreaterThan(0n);
   });
 
-  it("applies the counter limits to the cash value, not the coin count", () => {
+  it("applies the pickup-point limits to the cash value, not the coin count", () => {
     // 0.0001 BTC is a tiny coin amount but the limit is about the cash.
     const issues = fail({ ...cryptoToCash, give: "0.0001" });
     expect(issues[0]?.code).toBe("amount-too-small");
-    expect(issues[0]?.message).toMatch(/counter minimum/);
+    expect(issues[0]?.message).toMatch(/pickup-point minimum/);
   });
 });
 

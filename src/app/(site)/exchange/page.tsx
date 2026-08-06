@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   alternates: { canonical: "/exchange" },
   title: "Start an exchange",
-  description: "Price your exchange, see the 4% fee in full, and choose a counter.",
+  description: "Price your exchange, see the 4% fee in full, and choose a pickup point.",
 };
 
 /**
@@ -52,7 +52,7 @@ export default async function ExchangePage({
               See exactly what you&rsquo;ll get.
             </h1>
             <p className="mt-4 max-w-[46ch] text-lead text-ink-muted">
-              Set the amount, the coin and the counter. Everything that affects the
+              Set the amount, the coin and the pickup point. Everything that affects the
               final figure is on this screen — nothing is added later.
             </p>
 
@@ -61,7 +61,7 @@ export default async function ExchangePage({
                 <span aria-hidden="true" className="mark-square mt-[0.5rem]" />
                 <span className="text-ink-muted">
                   No account needed. You will get a code to track the order and to read
-                  out at the counter.
+                  out at the pickup point.
                 </span>
               </li>
               <li className="flex gap-3">

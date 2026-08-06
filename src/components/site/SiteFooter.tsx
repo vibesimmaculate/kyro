@@ -17,7 +17,7 @@ export function SiteFooter() {
           <div className="md:col-span-4">
             <Wordmark size="md" />
             <p className="mt-3 max-w-[26ch] text-small text-ink-muted">
-              Cash to crypto. Crypto to cash. At a counter, with a person, for one
+              Cash to crypto. Crypto to cash. At a pickup point, with a person, for one
               clear fee.
             </p>
           </div>

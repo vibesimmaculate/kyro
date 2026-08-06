@@ -4,7 +4,7 @@
  * These branches do not exist. They are plausible addresses in real cities, used
  * so the product can be designed and tested end to end. Every surface that
  * renders them carries a visible "Sample locations" marker — KYRO does not
- * imply a counter is open somewhere it is not.
+ * imply a pickup point is open somewhere it is not.
  *
  * A real directory implements `LocationProvider` and replaces the export at the
  * bottom. Nothing else in the product reads this file directly.
@@ -139,7 +139,7 @@ export const LOCATIONS: readonly Location[] = [
     currencies: ["BAM", "EUR"],
     assets: ["BTC", "USDT"],
     serviceLevel: "limited",
-    serviceNote: "Cash to crypto only at this counter for now.",
+    serviceNote: "Cash to crypto only at this pickup point for now.",
     cashOutCeiling: "0",
     coords: { lat: 43.3438, lng: 17.8078 },
   },
@@ -298,10 +298,10 @@ const DAY_INDEX: Record<string, number> = {
 };
 
 /**
- * Reads the wall clock at the counter, not on the visitor's device. Someone
+ * Reads the wall clock at the pickup point, not on the visitor's device. Someone
  * checking from London must still see Sarajevo's opening hours.
  */
-export function counterClock(at: Date, timeZone: string = COUNTER_TIME_ZONE): LocalClock {
+export function pickupClock(at: Date, timeZone: string = COUNTER_TIME_ZONE): LocalClock {
   const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone,
     weekday: "short",

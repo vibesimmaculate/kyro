@@ -6,7 +6,7 @@ import { StepForm } from "@/components/exchange/StepForm";
 import { cn } from "@/lib/cn";
 import {
   availabilityOf,
-  counterClock,
+  pickupClock,
   locationsSupporting,
   MINUTES_LABEL,
   type Availability,
@@ -42,7 +42,7 @@ export default async function LocationStepPage() {
   });
   if (!priced.ok) redirect("/exchange");
 
-  const clock = counterClock(requestDate());
+  const clock = pickupClock(requestDate());
   const candidates = locationsSupporting(draft.direction, draft.fiat, draft.asset);
   const cashToCrypto = draft.direction === "cash-to-crypto";
   const payout = priced.quote.receive;
@@ -52,13 +52,13 @@ export default async function LocationStepPage() {
       step={3}
       completed={draft.done}
       title={cashToCrypto ? "Where will you pay?" : "Where will you collect?"}
-      lead={`${candidates.length} ${candidates.length === 1 ? "counter handles" : "counters handle"} ${draft.asset} for ${draft.fiat} in this direction.`}
+      lead={`${candidates.length} ${candidates.length === 1 ? "pickup point handles" : "pickup points handle"} ${draft.asset} for ${draft.fiat} in this direction.`}
       quote={priced.quote}
       locationSlug={draft.location}
     >
       {candidates.length === 0 ? (
         <div className="max-w-[34rem] rounded-[10px] border border-amber/40 bg-amber-wash p-5">
-          <h2 className="text-subhead font-medium">No counter handles that combination.</h2>
+          <h2 className="text-subhead font-medium">No pickup point handles that combination.</h2>
           <p className="mt-2 text-small text-ink-muted">
             Nothing is lost — go back and change the currency or the coin, and the list will
             fill up again.
@@ -79,7 +79,7 @@ export default async function LocationStepPage() {
           footnote="Sample locations. These branches are illustrative and not yet trading."
         >
                       <fieldset>
-              <legend className="sr-only">Choose a counter</legend>
+              <legend className="sr-only">Choose a pickup point</legend>
               <div className="space-y-2">
                 {candidates.map((location) => {
                   const availability = availabilityOf(location, clock);
@@ -135,7 +135,7 @@ export default async function LocationStepPage() {
 
                         {tooBig ? (
                           <span className="mt-2 block border-s-2 border-amber ps-3 text-small text-ink">
-                            This counter keeps {formatMoney(ceiling)} on hand. Your payout is
+                            This pickup point keeps {formatMoney(ceiling)} on hand. Your payout is
                             larger, so it needs a working day&rsquo;s notice.
                           </span>
                         ) : null}

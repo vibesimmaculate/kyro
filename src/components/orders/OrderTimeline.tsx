@@ -4,7 +4,7 @@ import { cn } from "@/lib/cn";
  * Where an order has got to.
  *
  * Six stages, written the way a person would describe them. No internal system
- * states leak through here: nobody at a counter needs to read
+ * states leak through here: nobody at a pickup point needs to read
  * "AWAITING_CHAIN_CONFIRMATION".
  *
  * Completion is carried by the word "Done", the mark, and the timestamp

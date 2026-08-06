@@ -37,7 +37,7 @@ export interface QuoteIssue {
   readonly code: QuoteIssueCode;
   /** Which control to attach the message to. */
   readonly field: "give" | "network" | "fiat" | "asset";
-  /** Written for the person at the counter, not for a log file. */
+  /** Written for the person at the pickup point, not for a log file. */
   readonly message: string;
 }
 

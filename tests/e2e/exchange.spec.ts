@@ -114,7 +114,7 @@ test.describe("the exchange", () => {
     const amount = page.getByLabel("You give");
     await amount.fill("5");
     await amount.blur();
-    await expect(page.getByText(/The counter starts at/)).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/Pickup points start at/)).toBeVisible({ timeout: 10_000 });
 
     await amount.fill("999999");
     await amount.blur();

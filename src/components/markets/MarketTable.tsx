@@ -68,7 +68,7 @@ export function MarketTable({ rows }: { readonly rows: readonly MarketRow[] }) {
             <tr key={row.asset} className="border-b border-rule-faint last:border-0">
               <th scope="row" className="py-3.5 pe-3 align-middle font-normal">
                 <Link
-                  href={`/exchange?asset=${row.asset}`}
+                  href={`/prices/${row.asset.toLowerCase()}`}
                   className="group inline-flex min-w-0 items-baseline gap-2 rounded-[4px]"
                 >
                   <span className="figure-num text-[0.9375rem] font-medium text-ink group-hover:underline group-hover:decoration-rule-strong group-hover:underline-offset-4">

@@ -216,7 +216,7 @@ export function MinesGame({
             tone={round?.busted ? "lose" : playing || finished ? "win" : "neutral"}
             value={
               // A bust is not a multiplier of zero-point-something — it is the
-              // absence of one, and a counter ticking down to nothing reads as
+              // absence of one, and a pickup point ticking down to nothing reads as
               // a payout rather than a loss.
               round?.busted ? (
                 "—"
