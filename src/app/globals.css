@@ -38,7 +38,11 @@
   --color-blue: #1e4ed8;
   --color-blue-press: #1a41b4;
   --color-blue-wash: #eaeffc;
-  --color-green: #137a54;
+  /* Darkened from #137a54, which cleared 4.5:1 on Paper (4.73) and quietly
+     failed it on Paper-sunk (4.44). A signal colour has to be legible on every
+     ground the system actually puts it on, not just the lightest one; this
+     clears 6.53 and 6.14 respectively. */
+  --color-green: #0f6244;
   --color-green-wash: #e6f2ed;
   --color-amber: #a15c00;
   --color-amber-wash: #f9f0e2;
@@ -336,6 +340,17 @@
 }
 
 /* Hairline that reaches the full viewport while content stays in the shell */
+/* A strip that scrolls sideways on a phone without a bar sitting under it.
+   Used only where the overflow is obviously scrollable from its content. */
+@utility scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 @utility rule-full {
   border-top: 1px solid var(--color-rule);
 }
@@ -508,6 +523,30 @@
   100% {
     opacity: 0;
     transform: translate(var(--dx, 0), var(--dy, 120px)) scale(0.4) rotate(var(--spin, 220deg));
+  }
+}
+
+/* A bucket taking a ball: kicked down, then sprung back with a little
+   overshoot, because a bucket that only lights up does not feel struck. */
+@keyframes kyro-bucket {
+  0% {
+    transform: translateY(0) scale(1);
+    filter: brightness(1);
+  }
+  14% {
+    transform: translateY(7px) scale(1.1, 0.86);
+    filter: brightness(2.1);
+  }
+  46% {
+    transform: translateY(-3px) scale(0.97, 1.06);
+    filter: brightness(1.4);
+  }
+  72% {
+    transform: translateY(1px) scale(1.01, 0.99);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    filter: brightness(1);
   }
 }
 

@@ -14,6 +14,8 @@ import { crypto as cryptoAmount } from "@/lib/money/amounts";
 import { formatCrypto } from "@/lib/money/format";
 import type { CryptoCode } from "@/lib/money/currencies";
 import { celebrate, feedback, play as playSound, unlockSound } from "@/lib/sound";
+import { recordRound } from "@/lib/sound/intensity";
+import { useGameBalance } from "@/lib/games/use-balance";
 import { playDiceRound, type RoundResult } from "@/server/games/play";
 
 /**
@@ -39,7 +41,7 @@ export function DiceGame({
   readonly balance: bigint;
   readonly demo?: boolean;
 }) {
-  const [balance, setBalance] = useState(initialBalance);
+  const [balance, setBalance] = useGameBalance(initialBalance, demo);
   const [stake, setStake] = useState<bigint>(() => initialBalance / 20n);
   const [chance, setChance] = useState(50);
   const [direction, setDirection] = useState<"under" | "over">("under");
@@ -110,6 +112,7 @@ export function DiceGame({
 
   function rollDice() {
     unlockSound();
+    recordRound();
     playSound("tick");
     setSettled(false);
     setResult(undefined);

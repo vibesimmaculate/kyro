@@ -1,20 +1,30 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
+import { EffectsLayer, type EffectsHandle } from "@/components/games/EffectsLayer";
 import { GameHistory, type HistoryEntry } from "@/components/games/GameHistory";
 import { WinOverlay } from "@/components/games/WinOverlay";
 import { cn } from "@/lib/cn";
-import type { GameId } from "@/lib/games";
+import { MULTIPLIER_SCALE, type GameId } from "@/lib/games";
 import type { CryptoCode } from "@/lib/money/currencies";
+import { PALETTE } from "@/lib/particles";
 
 /**
  * The lit surface every game is played on.
  *
- * Carries three things each board would otherwise reinvent: the accent colour
- * for the game, the win celebration, and the recent-results strip. Setting
- * `--accent` here is what lets every child use `var(--accent)` without knowing
- * which game it belongs to.
+ * Carries four things each board would otherwise reinvent: the accent colour
+ * for the game, the win celebration, the recent-results strip, and the physical
+ * response to a result — particles and shake. Setting `--accent` here is what
+ * lets every child use `var(--accent)` without knowing which game it belongs to.
+ *
+ * Putting the effects here rather than in each game is deliberate. Six boards
+ * each deciding how hard to shake is six boards that disagree, and a wing where
+ * a 2× on one game feels bigger than a 40× on another is a wing that has
+ * stopped telling the truth about what just happened.
  */
+
+/** Scales every response. A 200× is the top of the range worth reacting to. */
+const CEILING = 2_000_000;
 
 export interface GameBoardProps {
   /** Kept for call-site clarity; the accent itself is set by GameLayout. */
@@ -42,12 +52,74 @@ export function GameBoard({
   className,
   status,
 }: GameBoardProps) {
+  const effectsRef = useRef<EffectsHandle | null>(null);
+
+  // Keyed on the round, so re-rendering for any other reason cannot replay a
+  // celebration that already happened.
+  const roundKey = win?.roundKey;
+  const multiplier = win?.multiplier ?? 0;
+
+  useEffect(() => {
+    if (!roundKey || multiplier <= MULTIPLIER_SCALE) return;
+
+    const strength = Math.min(1, multiplier / CEILING);
+    const big = multiplier >= 50_000;
+
+    effectsRef.current?.shake(0.2 + strength * 0.5);
+    effectsRef.current?.burst({
+      x: 0.5,
+      y: 0.62,
+      count: big ? 54 : 26,
+      colours: big ? PALETTE.gold : PALETTE.green,
+      speed: 0.8 + strength * 1.1,
+      life: 1.1,
+      size: big ? 3.4 : 2.6,
+      arc: Math.PI * 1.3,
+      direction: -Math.PI / 2,
+      gravity: 1.5,
+    });
+    // A second, slower ring of embers behind the first. One burst reads as a
+    // pop; two at different speeds read as an event with a tail.
+    if (big) {
+      effectsRef.current?.burst({
+        x: 0.5,
+        y: 0.62,
+        count: 22,
+        colours: PALETTE.ember,
+        speed: 0.4,
+        life: 1.7,
+        size: 2.2,
+        shape: "dot",
+        arc: Math.PI * 2,
+        gravity: 0.7,
+      });
+    }
+  }, [roundKey, multiplier]);
+
+  useEffect(() => {
+    if (!shake) return;
+    effectsRef.current?.shake(0.62);
+    effectsRef.current?.burst({
+      x: 0.5,
+      y: 0.5,
+      count: 26,
+      colours: PALETTE.red,
+      speed: 1.1,
+      life: 0.6,
+      size: 2.4,
+      arc: Math.PI * 2,
+      gravity: 2.4,
+      drag: 2,
+    });
+  }, [shake]);
+
   return (
     <div>
-      <div
+      <EffectsLayer
+        ref={effectsRef}
+        magnitude={11}
         className={cn(
-          "game-surface relative overflow-hidden rounded-[14px] p-4 sm:p-6",
-          shake && "animate-[kyro-shake_var(--duration-slow)_var(--ease-out-quiet)]",
+          "game-surface overflow-hidden rounded-[14px] p-4 sm:p-6",
           className,
         )}
       >
@@ -60,7 +132,7 @@ export function GameBoard({
             roundKey={win.roundKey}
           />
         ) : null}
-      </div>
+      </EffectsLayer>
 
       {status ? (
         <p aria-live="polite" className="mt-3 min-h-[1.5rem] text-small text-night-muted">

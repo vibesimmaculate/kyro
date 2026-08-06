@@ -5,6 +5,7 @@ import { isCryptoCode, isFiatCode, isNetworkId } from "@/lib/money/currencies";
 import { isDirection } from "@/lib/quote/types";
 import { readDraft } from "@/server/exchange/draft";
 import { requestNow } from "@/server/clock";
+import { liveAnchors } from "@/server/prices/anchors";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,9 @@ export default async function ExchangePage({
 }) {
   const params = await searchParams;
   const draft = await readDraft();
+  // Priming here also registers the anchors for the server-built quotes in the
+  // steps that follow, so a flow that starts on a live rate stays on one.
+  const anchors = await liveAnchors();
 
   const one = (key: string): string | undefined => {
     const value = params[key];
@@ -72,6 +76,7 @@ export default async function ExchangePage({
           <div className="mx-auto w-full min-w-0 max-w-[30rem] lg:col-span-6 lg:col-start-7 lg:max-w-none">
             <ExchangeCalculator
               anchor={requestNow()}
+              anchors={anchors}
               variant="page"
               defaults={{
                 direction: isDirection(direction) ? direction : draft?.direction,

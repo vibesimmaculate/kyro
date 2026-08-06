@@ -100,7 +100,7 @@ test.describe("machine-readable", () => {
     expect(body).toContain("4% of the cash side");
     expect(body).toContain("1,000 EUR the fee is 40.00 EUR");
     // It must warn a model off quoting preview data as fact.
-    expect(body).toContain("PREVIEW values");
+    expect(body).toContain("PREVIEW value");
     expect(body).toContain("SAMPLE data");
     expect(body).toContain("no gaming licence");
   });

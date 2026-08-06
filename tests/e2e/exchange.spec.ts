@@ -18,7 +18,10 @@ test.describe("the exchange", () => {
     await expect(ticket.getByText("Service fee 4%")).toBeVisible();
     // €1 000 default → exactly €40.00, printed rather than implied.
     await expect(ticket.getByText("40.00 EUR")).toBeVisible();
-    await expect(ticket.getByText(/Preview rate/)).toBeVisible();
+    // Either label is correct; which one appears depends on whether the market
+    // feed answered. What must never happen is a figure with no provenance
+    // beside it, so the assertion is that one of the two is always there.
+    await expect(ticket.getByText(/(Live|Preview) rate/)).toBeVisible();
   });
 
   test("recomputes when the amount changes", async ({ page }) => {

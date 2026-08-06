@@ -176,7 +176,11 @@ describe("quote lifetime", () => {
     expect(msRemaining(q, AT + QUOTE_TTL_MS + 5_000)).toBe(0);
   });
 
-  it("labels its rate as preview and never as live", () => {
+  it("labels the rate it actually used, and never overstates it", () => {
+    // With no feed registered a quote must say preview. The inverse — a quote
+    // built on live figures still labelled "Preview rate" — is covered in
+    // markets.test.ts. Understating is a smaller sin than overstating, but a
+    // label that never changes is not a label, it is decoration.
     const q = ok();
     expect(q.rateIsLive).toBe(false);
     expect(q.rateLabel).toBe("Preview rate");

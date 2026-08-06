@@ -30,6 +30,10 @@ import {
   playDice,
   plinkoMultiplier,
   plinkoPath,
+  PLINKO_RISK,
+  PLINKO_ROWS,
+  type PlinkoRisk,
+  type PlinkoRows,
   towerBoard,
   towerMultiplier,
   type CoinSide,
@@ -138,9 +142,18 @@ function settle(
   multiplier: number,
   outcome: Record<string, unknown>,
   nonce: number,
+  /**
+   * Withholds the payout for the caller to credit later.
+   *
+   * Plinko needs it. The round is computed the instant the ball is released,
+   * but the ball then spends three seconds falling — and crediting the win at
+   * computation time puts it on the balance readout while the ball is still
+   * halfway down the board, which gives the answer away before the board does.
+   */
+  defer = false,
 ): DemoRoundResult {
   const payout = payoutFor(stake, multiplier);
-  const balance = payout > 0n ? payDemo(payout) : demoBalance();
+  const balance = payout > 0n && !defer ? payDemo(payout) : demoBalance();
   return {
     ok: true,
     roundId: `demo-${nonce}`,
@@ -201,12 +214,27 @@ export function demoCrash(stake: bigint, target: number): DemoRoundResult {
   );
 }
 
-export function demoPlinko(stake: bigint): DemoRoundResult {
+export function demoPlinko(
+  stake: bigint,
+  rows: PlinkoRows = PLINKO_ROWS,
+  risk: PlinkoRisk = PLINKO_RISK,
+): DemoRoundResult {
   if (!stakeDemo(stake)) return INSUFFICIENT;
   const { serverSeed, clientSeed } = seeds();
   const nonce = nextNonce();
-  const { path, bucket } = plinkoPath(serverSeed, clientSeed, nonce);
-  return settle(stake, plinkoMultiplier(bucket), { path: [...path], bucket }, nonce);
+  const { path, bucket } = plinkoPath(serverSeed, clientSeed, nonce, rows);
+  return settle(
+    stake,
+    plinkoMultiplier(bucket, rows, risk),
+    { path: [...path], bucket, rows, risk },
+    nonce,
+    true,
+  );
+}
+
+/** Credits a payout `demoPlinko` withheld, once the ball has actually landed. */
+export function creditDemoPayout(amount: bigint): bigint {
+  return amount > 0n ? payDemo(amount) : demoBalance();
 }
 
 /* ── Step-by-step games ────────────────────────────────────────────────── */

@@ -5,9 +5,10 @@ export interface NavItem {
   readonly hint?: string;
 }
 
-/** The counter. Five links, in the order someone actually needs them. */
+/** The counter. Six links, in the order someone actually needs them. */
 export const PRIMARY_NAV: readonly NavItem[] = [
   { href: "/exchange", label: "Exchange", hint: "Start a cash ↔ crypto order" },
+  { href: "/prices", label: "Prices", hint: "What the market is doing right now" },
   { href: "/locations", label: "Locations", hint: "Where to collect or pay" },
   { href: "/how-it-works", label: "How it works", hint: "Three steps, start to finish" },
   { href: "/fees", label: "Fees", hint: "One rate, worked through" },
@@ -19,6 +20,7 @@ export const FOOTER_NAV: readonly { title: string; items: readonly NavItem[] }[]
     title: "Exchange",
     items: [
       { href: "/exchange", label: "Start an exchange" },
+      { href: "/prices", label: "Prices" },
       { href: "/track", label: "Track an order" },
       { href: "/fees", label: "Fees" },
       { href: "/how-it-works", label: "How it works" },

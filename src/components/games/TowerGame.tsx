@@ -20,6 +20,8 @@ import { crypto as cryptoAmount } from "@/lib/money/amounts";
 import { formatCrypto } from "@/lib/money/format";
 import type { CryptoCode } from "@/lib/money/currencies";
 import { celebrate, feedback, play as playSound, unlockSound } from "@/lib/sound";
+import { recordRound } from "@/lib/sound/intensity";
+import { useGameBalance } from "@/lib/games/use-balance";
 import { climbTower, cashOutTower, openTowerRound, type TowerState } from "@/server/games/tower";
 
 /**
@@ -45,7 +47,7 @@ export function TowerGame({
   readonly balance: bigint;
   readonly demo?: boolean;
 }) {
-  const [balance, setBalance] = useState(initialBalance);
+  const [balance, setBalance] = useGameBalance(initialBalance, demo);
   const [stake, setStake] = useState<bigint>(() => initialBalance / 20n || 1_000_000n);
   const [difficulty, setDifficulty] = useState<TowerDifficulty>("medium");
   const [round, setRound] = useState<TowerState | undefined>();
@@ -78,6 +80,7 @@ export function TowerGame({
 
   function begin() {
     unlockSound();
+    recordRound();
     playSound("select");
 
     if (demo && runner) {

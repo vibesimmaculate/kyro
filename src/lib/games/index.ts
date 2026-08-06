@@ -178,45 +178,76 @@ export function crashPoint(serverSeed: string, clientSeed: string, nonce: number
 
 /* ── Plinko ────────────────────────────────────────────────────────────── */
 
-export const PLINKO_ROWS = 12;
+export const PLINKO_ROW_OPTIONS = [8, 12, 16] as const;
+export type PlinkoRows = (typeof PLINKO_ROW_OPTIONS)[number];
+
+export const PLINKO_RISKS = ["low", "medium", "high"] as const;
+export type PlinkoRisk = (typeof PLINKO_RISKS)[number];
+
+export const PLINKO_ROWS: PlinkoRows = 12;
+export const PLINKO_RISK: PlinkoRisk = "medium";
+
+export function isPlinkoRows(value: number): value is PlinkoRows {
+  return (PLINKO_ROW_OPTIONS as readonly number[]).includes(value);
+}
+
+export function isPlinkoRisk(value: string): value is PlinkoRisk {
+  return (PLINKO_RISKS as readonly string[]).includes(value);
+}
 
 /**
- * Where a ball lands, as the count of right-bounces over twelve rows — a
- * binomial distribution over thirteen buckets.
+ * Where a ball lands, as the count of right-bounces down the board — a binomial
+ * distribution over `rows + 1` buckets.
  */
 export function plinkoPath(
   serverSeed: string,
   clientSeed: string,
   nonce: number,
+  rows: PlinkoRows = PLINKO_ROWS,
 ): { path: readonly ("L" | "R")[]; bucket: number } {
-  const floats = floatStream(serverSeed, clientSeed, nonce, PLINKO_ROWS);
+  const floats = floatStream(serverSeed, clientSeed, nonce, rows);
   const path = floats.map((f) => (f < 0.5 ? "L" : "R") as "L" | "R");
   return { path, bucket: path.filter((step) => step === "R").length };
 }
 
 /**
+ * Risk shapes the curve, and nothing else.
+ *
+ * The exponent decides how sharply payout rises as a bucket gets rarer. A low
+ * exponent flattens the board — the middle keeps most of your stake and the
+ * edges are modest. A high one hollows it out: the middle pays a fraction and
+ * the edges pay a great deal.
+ *
+ * What risk emphatically does *not* change is the return. All three curves are
+ * normalised to the same 99%, so choosing "high" buys variance, not value. That
+ * is worth being explicit about, because the arrangement of these boards
+ * elsewhere in the industry often implies otherwise.
+ */
+const RISK_EXPONENT: Record<PlinkoRisk, number> = {
+  low: 0.34,
+  medium: 0.62,
+  high: 0.88,
+};
+
+const binomial = (n: number, k: number): number => {
+  let result = 1;
+  for (let i = 0; i < k; i += 1) result = (result * (n - i)) / (i + 1);
+  return result;
+};
+
+/**
  * Bucket multipliers, derived rather than chosen.
  *
- * Each bucket's probability is C(12,k)/2^12. A payout of 0.99/p would return
- * exactly 99% but puts absurd numbers on the edges, so the curve is shaped by a
- * exponent and then normalised so the expected return lands on 99% — computed
- * here, at module load, not typed in by hand.
+ * Each bucket's probability is C(rows,k)/2^rows. A payout of 0.99/p returns
+ * exactly 99% but puts absurd numbers on the edges, so the curve is shaped by
+ * an exponent and then normalised so the expected return lands back on 99% —
+ * computed here, not typed in by hand.
  */
-function buildPlinkoMultipliers(): readonly number[] {
-  const binomial = (n: number, k: number): number => {
-    let result = 1;
-    for (let i = 0; i < k; i += 1) result = (result * (n - i)) / (i + 1);
-    return result;
-  };
+function buildPlinkoMultipliers(rows: PlinkoRows, risk: PlinkoRisk): readonly number[] {
+  const total = 2 ** rows;
+  const probabilities = Array.from({ length: rows + 1 }, (_, k) => binomial(rows, k) / total);
 
-  const total = 2 ** PLINKO_ROWS;
-  const probabilities = Array.from(
-    { length: PLINKO_ROWS + 1 },
-    (_, k) => binomial(PLINKO_ROWS, k) / total,
-  );
-
-  // Shape: rarer buckets pay more, but tempered so the extremes stay readable.
-  const shape = probabilities.map((p) => Math.pow(1 / p, 0.62));
+  const shape = probabilities.map((p) => Math.pow(1 / p, RISK_EXPONENT[risk]));
 
   const expected = shape.reduce((sum, value, k) => sum + value * (probabilities[k] ?? 0), 0);
   const scale = (10_000 - HOUSE_EDGE_BP) / 10_000 / expected;
@@ -224,10 +255,35 @@ function buildPlinkoMultipliers(): readonly number[] {
   return shape.map((value) => Math.max(1, Math.floor(value * scale * MULTIPLIER_SCALE)));
 }
 
-export const PLINKO_MULTIPLIERS = buildPlinkoMultipliers();
+/** Every combination, built once at module load — nine short arrays. */
+const PLINKO_TABLES = new Map<string, readonly number[]>(
+  PLINKO_ROW_OPTIONS.flatMap((rows) =>
+    PLINKO_RISKS.map(
+      (risk) => [`${rows}:${risk}`, buildPlinkoMultipliers(rows, risk)] as const,
+    ),
+  ),
+);
 
-export function plinkoMultiplier(bucket: number): number {
-  return PLINKO_MULTIPLIERS[bucket] ?? 0;
+export function plinkoMultipliers(
+  rows: PlinkoRows = PLINKO_ROWS,
+  risk: PlinkoRisk = PLINKO_RISK,
+): readonly number[] {
+  return PLINKO_TABLES.get(`${rows}:${risk}`) ?? [];
+}
+
+export const PLINKO_MULTIPLIERS = plinkoMultipliers();
+
+export function plinkoMultiplier(
+  bucket: number,
+  rows: PlinkoRows = PLINKO_ROWS,
+  risk: PlinkoRisk = PLINKO_RISK,
+): number {
+  return plinkoMultipliers(rows, risk)[bucket] ?? 0;
+}
+
+/** Probability of a given bucket, for the odds shown under the board. */
+export function plinkoProbability(bucket: number, rows: PlinkoRows = PLINKO_ROWS): number {
+  return binomial(rows, bucket) / 2 ** rows;
 }
 
 
@@ -363,8 +419,8 @@ export const GAME_META: Record<GameId, GameMeta> = {
   plinko: {
     id: "plinko",
     name: "Plinko",
-    tagline: "Twelve rows, thirteen ends.",
-    rule: "A ball falls through twelve rows. The bucket it lands in sets your payout.",
+    tagline: "Every pin is a coin toss.",
+    rule: "A ball falls through the pins. The bucket it lands in sets your payout — the middle is likely and cheap, the edges rare and not.",
     accent: "blue",
   },
 };

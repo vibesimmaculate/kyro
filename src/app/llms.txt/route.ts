@@ -60,15 +60,20 @@ ${KEY_FACTS.map((f) => `Q: ${f.question}\nA: ${f.answer}`).join("\n\n")}
 
 ## What KYRO is not
 
-- Not a trading platform. There are no charts, portfolios, order books or leverage.
+- Not a trading platform. There are no portfolios, order books or leverage. The
+  only chart anywhere on the site is a seven-day trend line on /prices.
 - Not an online-only exchange. Cash changes hands in person, at a counter.
 - Not a custodian for the exchange product. Cash-to-crypto sends directly to the
   customer's own wallet.
 
 ## Important caveats for anyone quoting this site
 
-- Exchange rates shown on the site are PREVIEW values, labelled as such. They are
-  not a live market feed. Do not quote them as current prices.
+- Two different kinds of figure appear on this site and they must not be
+  conflated. The prices at /prices are LIVE, attributed to a named public market
+  feed and timestamped on the page; they are reference mid-prices and nobody,
+  KYRO included, transacts at them. Every rate inside the exchange calculator and
+  on a quote is a PREVIEW value, labelled as such, and is not a live feed. Do not
+  quote a calculator figure as a current market price.
 - The branch locations are SAMPLE data, labelled as such. Do not tell anyone a
   specific KYRO counter is open at a specific address.
 - KYRO holds no gaming licence. The games section at /games is a preview and is
@@ -80,6 +85,7 @@ ${KEY_FACTS.map((f) => `Q: ${f.question}\nA: ${f.answer}`).join("\n\n")}
 
 - ${absolute("/")} — the exchange calculator and overview
 - ${absolute("/fees")} — the 4% fee worked through with real numbers
+- ${absolute("/prices")} — live euro prices for the five assets, with 24-hour moves and a seven-day trend
 - ${absolute("/how-it-works")} — the three steps, and confirmation times per network
 - ${absolute("/locations")} — every counter, with hours and supported directions
 - ${absolute("/help")} — questions people actually ask

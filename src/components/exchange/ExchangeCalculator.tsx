@@ -29,7 +29,8 @@ import {
   type NetworkId,
 } from "@/lib/money/currencies";
 import { formatCrypto, formatMoney, formatRate } from "@/lib/money/format";
-import { buildQuote } from "@/lib/quote/engine";
+import { buildQuote, defaultQuoteDependencies } from "@/lib/quote/engine";
+import { createRateProvider, type RateAnchors } from "@/lib/rates/preview";
 import { QUOTE_TTL_MS } from "@/lib/rates/preview";
 import type { Direction } from "@/lib/quote/types";
 
@@ -54,6 +55,15 @@ export interface CalculatorDefaults {
 export interface ExchangeCalculatorProps {
   /** Request time. Anchors the quote so SSR and hydration produce the same figures. */
   readonly anchor: number;
+  /**
+   * Euro prices from the live market feed, handed down from the server.
+   *
+   * The calculator rebuilds its quote locally on every keystroke, so it cannot
+   * await anything — the anchors have to arrive as data. They are decimal
+   * strings for the same reason every other figure here is: a float must never
+   * be in the room when money is being calculated.
+   */
+  readonly anchors?: RateAnchors;
   readonly defaults?: CalculatorDefaults;
   /**
    * `hero` hands the inputs to /exchange through the URL, so the homepage stays
@@ -140,6 +150,7 @@ function defaultCryptoAmount(asset: CryptoCode): string {
 
 export function ExchangeCalculator({
   anchor,
+  anchors,
   defaults,
   variant = "hero",
   className,
@@ -160,17 +171,22 @@ export function ExchangeCalculator({
     setExpired(false);
   }, []);
 
+  const rates = useMemo(() => createRateProvider(anchors), [anchors]);
+
   const result = useMemo(
     () =>
-      buildQuote({
-        direction: state.direction,
-        give: state.amount,
-        fiat: state.fiat,
-        asset: state.asset,
-        network: state.network,
-        at: quoteAt,
-      }),
-    [state, quoteAt],
+      buildQuote(
+        {
+          direction: state.direction,
+          give: state.amount,
+          fiat: state.fiat,
+          asset: state.asset,
+          network: state.network,
+          at: quoteAt,
+        },
+        { ...defaultQuoteDependencies, rates },
+      ),
+    [state, quoteAt, rates],
   );
 
   const quote = result.ok ? result.quote : null;

@@ -16,6 +16,8 @@ import {
   playDice,
   plinkoMultiplier,
   plinkoPath,
+  PLINKO_RISKS,
+  PLINKO_ROW_OPTIONS,
   type GameId,
 } from "@/lib/games";
 import { placeBet, payoutRound } from "@/server/ledger";
@@ -292,17 +294,35 @@ export async function playCrashRound(formData: FormData): Promise<RoundResult> {
   );
 }
 
+const PlinkoSchema = StakeSchema.extend({
+  // Coerced from the form as a string, then checked against the allowed set —
+  // an arbitrary row count would produce a board with no published odds.
+  rows: z
+    .string()
+    .transform((value) => Number.parseInt(value, 10))
+    .refine((value): value is (typeof PLINKO_ROW_OPTIONS)[number] =>
+      (PLINKO_ROW_OPTIONS as readonly number[]).includes(value),
+    ),
+  risk: z.enum(PLINKO_RISKS),
+});
+
 export async function playPlinkoRound(formData: FormData): Promise<RoundResult> {
-  const parsed = StakeSchema.safeParse(Object.fromEntries(formData));
+  const parsed = PlinkoSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { ok: false, error: "Check your stake." };
+  const { rows, risk } = parsed.data;
 
   return runRound(
-    { game: "plinko", asset: parsed.data.asset, stake: BigInt(parsed.data.stake), params: {} },
+    {
+      game: "plinko",
+      asset: parsed.data.asset,
+      stake: BigInt(parsed.data.stake),
+      params: { rows, risk },
+    },
     (serverSeed, clientSeed, nonce) => {
-      const { path, bucket } = plinkoPath(serverSeed, clientSeed, nonce);
+      const { path, bucket } = plinkoPath(serverSeed, clientSeed, nonce, rows);
       return {
-        multiplier: plinkoMultiplier(bucket),
-        outcome: { path, bucket },
+        multiplier: plinkoMultiplier(bucket, rows, risk),
+        outcome: { path, bucket, rows, risk },
       };
     },
   );

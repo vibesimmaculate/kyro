@@ -18,6 +18,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/exchange", priority: 0.9, frequency: "daily" },
     { path: "/fees", priority: 0.9, frequency: "weekly" },
     { path: "/locations", priority: 0.8, frequency: "weekly" },
+    { path: "/prices", priority: 0.8, frequency: "hourly" },
     { path: "/how-it-works", priority: 0.7, frequency: "monthly" },
     { path: "/help", priority: 0.7, frequency: "monthly" },
     { path: "/track", priority: 0.5, frequency: "monthly" },

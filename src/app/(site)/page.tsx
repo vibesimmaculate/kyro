@@ -5,6 +5,7 @@ import { StepSequence } from "@/components/exchange/StepSequence";
 import { SupportAccordion } from "@/components/help/SupportAccordion";
 import { LocationPlot } from "@/components/locations/LocationPlot";
 import { LocationRow } from "@/components/locations/LocationRow";
+import { MarketTape } from "@/components/markets/MarketTape";
 import { OrderTimeline } from "@/components/orders/OrderTimeline";
 import { Section } from "@/components/site/Section";
 import { ButtonLink } from "@/components/ui/Button";
@@ -21,6 +22,7 @@ import {
   websiteSchema,
 } from "@/lib/seo/structured-data";
 import { requestNow } from "@/server/clock";
+import { liveAnchors } from "@/server/prices/anchors";
 
 /**
  * Rates move, so the page is regenerated rather than frozen at build time. The
@@ -47,7 +49,10 @@ const STEPS = [
   },
 ];
 
-export default function HomePage() {
+export default async function HomePage() {
+  // Primed before any quote is built on this page, so the ticker above the
+  // calculator and the figure inside it can never disagree about a price.
+  const anchors = await liveAnchors();
   const now = requestNow();
   const clock = counterClock(new Date(now));
 
@@ -75,6 +80,10 @@ export default function HomePage() {
           faqSchema(),
         )}
       />
+
+      {/* The tape sits above the hero rather than inside it: it answers the
+          question people arrive with, and then gets out of the way. */}
+      <MarketTape />
 
       {/* ── Hero: the calculator is the hero ──────────────────────────── */}
       {/* Splits at lg, not md: below 1024 the ticket needs the full column or
@@ -119,7 +128,7 @@ export default function HomePage() {
           </div>
 
           <div className="mx-auto w-full min-w-0 max-w-[30rem] lg:col-span-6 lg:col-start-7 lg:max-w-none">
-            <ExchangeCalculator anchor={now} variant="hero" />
+            <ExchangeCalculator anchor={now} anchors={anchors} variant="hero" />
           </div>
         </div>
       </section>

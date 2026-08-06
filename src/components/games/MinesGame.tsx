@@ -13,6 +13,8 @@ import { crypto as cryptoAmount } from "@/lib/money/amounts";
 import { formatCrypto } from "@/lib/money/format";
 import type { CryptoCode } from "@/lib/money/currencies";
 import { celebrate, feedback, play as playSound, unlockSound } from "@/lib/sound";
+import { recordRound } from "@/lib/sound/intensity";
+import { useGameBalance } from "@/lib/games/use-balance";
 import {
   cashOutMines,
   openMinesRound,
@@ -41,7 +43,7 @@ export function MinesGame({
   readonly balance: bigint;
   readonly demo?: boolean;
 }) {
-  const [balance, setBalance] = useState(initialBalance);
+  const [balance, setBalance] = useGameBalance(initialBalance, demo);
   const [stake, setStake] = useState<bigint>(() => initialBalance / 20n);
   const [mines, setMines] = useState(3);
   const [round, setRound] = useState<MinesRoundState | undefined>();
@@ -80,6 +82,7 @@ export function MinesGame({
 
   function begin() {
     unlockSound();
+    recordRound();
     playSound("select");
 
     if (demo && runner) {

@@ -13,6 +13,8 @@ import { crypto as cryptoAmount } from "@/lib/money/amounts";
 import { formatCrypto } from "@/lib/money/format";
 import type { CryptoCode } from "@/lib/money/currencies";
 import { celebrate, feedback, play as playSound, unlockSound } from "@/lib/sound";
+import { recordRound } from "@/lib/sound/intensity";
+import { useGameBalance } from "@/lib/games/use-balance";
 import { playCoinFlipRound, type RoundResult } from "@/server/games/play";
 
 /**
@@ -38,7 +40,7 @@ export function CoinFlipGame({
   readonly balance: bigint;
   readonly demo?: boolean;
 }) {
-  const [balance, setBalance] = useState(initialBalance);
+  const [balance, setBalance] = useGameBalance(initialBalance, demo);
   const [stake, setStake] = useState<bigint>(() => initialBalance / 20n);
   const [pick, setPick] = useState<CoinSide>("heads");
   const [result, setResult] = useState<RoundResult | undefined>();
@@ -84,6 +86,7 @@ export function CoinFlipGame({
 
   function flip() {
     unlockSound();
+    recordRound();
     playSound("tick");
     setSettled(false);
     setResult(undefined);

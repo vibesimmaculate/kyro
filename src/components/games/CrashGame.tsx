@@ -13,6 +13,8 @@ import { crypto as cryptoAmount } from "@/lib/money/amounts";
 import { formatCrypto } from "@/lib/money/format";
 import type { CryptoCode } from "@/lib/money/currencies";
 import { celebrate, feedback, play as playSound, unlockSound } from "@/lib/sound";
+import { recordRound } from "@/lib/sound/intensity";
+import { useGameBalance } from "@/lib/games/use-balance";
 import { playCrashRound, type RoundResult } from "@/server/games/play";
 
 /**
@@ -41,7 +43,7 @@ export function CrashGame({
   readonly balance: bigint;
   readonly demo?: boolean;
 }) {
-  const [balance, setBalance] = useState(initialBalance);
+  const [balance, setBalance] = useGameBalance(initialBalance, demo);
   const [stake, setStake] = useState<bigint>(() => initialBalance / 20n);
   const [target, setTarget] = useState("2.00");
   const [result, setResult] = useState<RoundResult | undefined>();
@@ -61,6 +63,20 @@ export function CrashGame({
     },
     [],
   );
+
+  // Draw the empty chart at rest and on resize. Without this the board is a
+  // blank rectangle until the first round, which reads as something failing to
+  // load rather than as a game waiting for you.
+  useEffect(() => {
+    const paint = () => drawIdleChart(canvasRef.current);
+    paint();
+
+    const canvas = canvasRef.current;
+    if (!canvas || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(paint);
+    observer.observe(canvas);
+    return () => observer.disconnect();
+  }, []);
 
   const targetScaled = Math.round(Number(target || "1") * MULTIPLIER_SCALE);
   const crashAt = result?.ok ? (result.outcome?.crashPoint as number | undefined) : undefined;
@@ -92,15 +108,7 @@ export function CrashGame({
     const innerW = w - pad * 2;
     const innerH = h - pad * 2;
 
-    ctx.strokeStyle = "rgba(140,150,170,0.1)";
-    ctx.lineWidth = 1;
-    for (let i = 1; i <= 3; i += 1) {
-      const y = pad + (innerH / 4) * i;
-      ctx.beginPath();
-      ctx.moveTo(pad, y);
-      ctx.lineTo(w - pad, y);
-      ctx.stroke();
-    }
+    drawGraticule(ctx, w, h, pad);
 
     // The player's auto cash-out, as a place on the chart. Drawn only while
     // the round runs: once it has settled the line sits exactly on the head of
@@ -245,6 +253,7 @@ export function CrashGame({
 
   function placeBet() {
     unlockSound();
+    recordRound();
     playSound("tick");
     setResult(undefined);
     setSettled(false);
@@ -417,4 +426,65 @@ export function CrashGame({
       }
     />
   );
+}
+
+/**
+ * The graticule the curve is read against.
+ *
+ * Horizontals carry the multiplier, verticals carry elapsed time — enough
+ * structure to judge a rising line by, and no more. A full grid with tick
+ * labels would turn this into a trading screen, which is the one thing the
+ * product has said from the beginning it is not.
+ */
+function drawGraticule(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  pad: number,
+): void {
+  const innerW = w - pad * 2;
+  const innerH = h - pad * 2;
+
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = "rgba(140,150,170,0.09)";
+  for (let i = 1; i <= 3; i += 1) {
+    const y = pad + (innerH / 4) * i;
+    ctx.beginPath();
+    ctx.moveTo(pad, y);
+    ctx.lineTo(w - pad, y);
+    ctx.stroke();
+  }
+  for (let i = 1; i <= 5; i += 1) {
+    const x = pad + (innerW / 6) * i;
+    ctx.beginPath();
+    ctx.moveTo(x, pad);
+    ctx.lineTo(x, h - pad);
+    ctx.stroke();
+  }
+
+  // The floor the curve leaves from, so the chart has a base at rest.
+  ctx.strokeStyle = "rgba(140,150,170,0.22)";
+  ctx.beginPath();
+  ctx.moveTo(pad, h - pad);
+  ctx.lineTo(w - pad, h - pad);
+  ctx.stroke();
+}
+
+/** The chart with nothing on it: what the board shows between rounds. */
+function drawIdleChart(canvas: HTMLCanvasElement | null): void {
+  const ctx = canvas?.getContext("2d");
+  if (!canvas || !ctx) return;
+
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const w = canvas.clientWidth;
+  const h = canvas.clientHeight;
+  if (w === 0 || h === 0) return;
+
+  if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+  }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  drawGraticule(ctx, w, h, 10);
 }
