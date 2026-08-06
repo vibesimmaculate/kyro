@@ -20,6 +20,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/fees", priority: 0.9, frequency: "weekly" },
     { path: "/locations", priority: 0.8, frequency: "weekly" },
     { path: "/prices", priority: 0.8, frequency: "hourly" },
+    { path: "/legal/terms", priority: 0.2, frequency: "monthly" },
+    { path: "/legal/privacy", priority: 0.2, frequency: "monthly" },
     ...CRYPTO_CODES.map((asset) => ({
       path: `/prices/${asset.toLowerCase()}`,
       priority: 0.6,

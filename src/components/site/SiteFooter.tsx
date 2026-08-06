@@ -61,12 +61,12 @@ export function SiteFooter() {
           <p>© {year} KYRO. Sample locations and preview rates — see Fees.</p>
           <ul className="flex flex-wrap items-center gap-x-5 gap-y-2">
             <li>
-              <Link href="/terms" className="transition-colors hover:text-ink">
+              <Link href="/legal/terms" className="transition-colors hover:text-ink">
                 Terms
               </Link>
             </li>
             <li>
-              <Link href="/privacy" className="transition-colors hover:text-ink">
+              <Link href="/legal/privacy" className="transition-colors hover:text-ink">
                 Privacy
               </Link>
             </li>
